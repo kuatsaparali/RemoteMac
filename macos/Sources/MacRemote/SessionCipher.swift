@@ -39,16 +39,18 @@ struct SessionCipher {
     private var sent: UInt64 = 0
     private var received: UInt64 = 0
 
+    var lastFrameSequence: UInt64 { sent }
+
     init() throws { secret = try .secureRandom(count: 32) }
 
     var ticket: String { Data(SHA256.hash(data: secret)).base64url }
 
-    mutating func frame(_ jpeg: Data) throws -> Data {
+    mutating func frame(_ payload: Data) throws -> Data {
         sent += 1
         var sequence = sent.bigEndian
         var nonce = Data([0, 0, 0, 1])
         Swift.withUnsafeBytes(of: &sequence) { nonce.append(contentsOf: $0) }
-        let sealed = try AES.GCM.seal(jpeg, using: SymmetricKey(data: secret), nonce: AES.GCM.Nonce(data: nonce))
+        let sealed = try AES.GCM.seal(payload, using: SymmetricKey(data: secret), nonce: AES.GCM.Nonce(data: nonce))
         var packet = nonce
         packet.append(sealed.ciphertext)
         packet.append(sealed.tag)

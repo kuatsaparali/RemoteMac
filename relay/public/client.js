@@ -14,7 +14,7 @@ const viewport = byId('viewport');
 const keyboard = byId('keyboard');
 const fullscreen = byId('fullscreen');
 const resolution = byId('resolution');
-const context = canvas.getContext('2d', { alpha: false });
+const context = canvas.getContext('2d', { alpha: false, desynchronized: true });
 
 const invitationPattern = /^#([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{43})$/;
 let initialLink = invitationPattern.exec(location.hash);
@@ -35,6 +35,9 @@ function reset(session, message) {
   current = undefined;
   clearTimeout(session?.timer);
   session?.socket?.close();
+  clearTimeout(session?.videoTimer);
+  if (session?.decoder && session.decoder.state !== 'closed') session.decoder.close();
+  resolution.textContent = '';
   keys.clear();
   buttons.clear();
   pointerMove = undefined;
@@ -71,7 +74,7 @@ function base64url(bytes) {
 }
 
 async function start(match) {
-  const session = { commands: Promise.resolve(), queued: 0, sent: 0n, received: 0n };
+  const session = { commands: Promise.resolve(), queued: 0, sent: 0n, received: 0n, packets: [] };
   current = session;
   invite.value = '';
   initialLink = undefined;
@@ -92,7 +95,7 @@ async function start(match) {
     const socket = new WebSocket(new URL('/ws', location.origin.replace(/^http/, 'ws')));
     socket.binaryType = 'arraybuffer';
     session.socket = socket;
-    socket.addEventListener('open', () => socket.send(JSON.stringify({ type: 'join', room: match[1], ticket })));
+    socket.addEventListener('open', () => socket.send(JSON.stringify({ type: 'join', room: match[1], ticket, paced: true })));
     socket.addEventListener('message', event => {
       if (current !== session) return;
       if (typeof event.data !== 'string') {
@@ -109,6 +112,7 @@ async function start(match) {
           break;
         case 'active':
           session.approved = true;
+          negotiateVideo(session);
           heading.textContent = 'Получаем экран';
           wait(session, 'Подключение одобрено. Загружаем первый кадр.', 15_000, 'Экран не поступил. Проверьте разрешения на удалённом Mac.');
           break;
@@ -154,42 +158,118 @@ form.addEventListener('submit', event => {
   }
 });
 
+async function negotiateVideo(session) {
+  let video = false;
+  if (typeof VideoDecoder !== 'undefined' && typeof EncodedVideoChunk !== 'undefined') {
+    try {
+      video = (await VideoDecoder.isConfigSupported({ codec: 'avc1.42e01f', optimizeForLatency: true })).supported;
+    } catch {}
+  }
+  if (current !== session) return;
+  send({ type: 'stream', codec: video ? 'h264' : 'jpeg' });
+}
+
+function fallbackToImages(session) {
+  if (current !== session || session.videoDisabled) return;
+  session.videoDisabled = true;
+  clearTimeout(session.videoTimer);
+  if (session.decoder && session.decoder.state !== 'closed') session.decoder.close();
+  session.decoder = undefined;
+  session.videoFrames?.clear();
+  send({ type: 'stream', codec: 'jpeg' });
+}
+
+function drawFrame(session, source, width, height) {
+  if (current !== session) return;
+  const resized = canvas.width !== width || canvas.height !== height;
+  if (resized) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+  const first = !session.visible;
+  if (first) {
+    clearTimeout(session.timer);
+    session.visible = true;
+    shell.classList.add('is-active');
+    byId('landing').hidden = true;
+    byId('tools').hidden = false;
+    byId('workspace').hidden = false;
+    byId('disconnect').focus();
+  }
+  if (resized || !resolution.textContent) resolution.textContent = width + ' × ' + height;
+  context.drawImage(source, 0, 0, width, height);
+  // Layout is measured on resize, rather than on every decoded video frame.
+  if (first || resized) fit();
+}
+
+function decodeVideo(session, bytes, sequence, skipped) {
+  if (session.videoDisabled) return;
+  const header = new DataView(bytes);
+  const keyframe = header.getUint8(4) === 1;
+  if (skipped && !keyframe) { fallbackToImages(session); return; }
+  const codec = 'avc1.' + [...new Uint8Array(bytes, 5, 3)].map(value => value.toString(16).padStart(2, '0')).join('');
+  const width = header.getUint16(8);
+  const height = header.getUint16(10);
+  const timestamp = Number(header.getBigUint64(12));
+  if (!width || !height || !Number.isSafeInteger(timestamp)) { fallbackToImages(session); return; }
+  if (!session.decoder || session.videoCodec !== codec) {
+    if (!keyframe) { fallbackToImages(session); return; }
+    if (session.decoder && session.decoder.state !== 'closed') session.decoder.close();
+    session.videoFrames = new Map();
+    session.videoCodec = codec;
+    session.decoder = new VideoDecoder({
+      output(frame) {
+        try {
+          if (current !== session || session.videoDisabled) return;
+          const acknowledged = session.videoFrames.get(frame.timestamp);
+          for (const timestamp of session.videoFrames.keys()) {
+            if (timestamp <= frame.timestamp) session.videoFrames.delete(timestamp);
+          }
+          clearTimeout(session.videoTimer);
+          drawFrame(session, frame, frame.displayWidth, frame.displayHeight);
+          if (acknowledged !== undefined) send({ type: 'frameAck', frame: Number(acknowledged) });
+        } finally {
+          frame.close();
+        }
+      },
+      error() { fallbackToImages(session); },
+    });
+    // Avoid hardware decoder buffering when desktop updates are sparse.
+    session.decoder.configure({ codec, codedWidth: width, codedHeight: height, optimizeForLatency: true, hardwareAcceleration: 'prefer-software' });
+  }
+  if (session.decoder.decodeQueueSize > 2) { fallbackToImages(session); return; }
+  session.videoFrames.set(timestamp, sequence);
+  clearTimeout(session.videoTimer);
+  session.videoTimer = setTimeout(() => fallbackToImages(session), 1000);
+  session.decoder.decode(new EncodedVideoChunk({ type: keyframe ? 'key' : 'delta', timestamp, data: bytes.slice(20) }));
+}
+
 async function postFrame(session, packet) {
-  session.pendingFrame = packet;
+  // New hosts send at most two unacknowledged frames. Bound legacy JPEG senders too.
+  if (session.packets.length >= 4) session.packets.shift();
+  session.packets.push(packet);
   if (session.rendering) return;
   session.rendering = true;
   try {
-    while (session.pendingFrame && current === session) {
-      const next = session.pendingFrame;
-      session.pendingFrame = undefined;
+    while (session.packets.length && current === session) {
+      const next = session.packets.shift();
       if (next.byteLength < 29) continue;
       const nonce = new DataView(next, 0, 12);
       const sequence = nonce.getBigUint64(4);
       if (nonce.getUint32(0) !== 1 || sequence <= session.received) continue;
-      const jpeg = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, session.key, next.slice(12));
+      const bytes = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, session.key, next.slice(12));
+      const skipped = sequence !== session.received + 1n;
       session.received = sequence;
-      const bitmap = await createImageBitmap(new Blob([jpeg], { type: 'image/jpeg' }));
+      if (bytes.byteLength > 20 && new DataView(bytes).getUint32(0) === 0x4d525601) {
+        try { decodeVideo(session, bytes, sequence, skipped); }
+        catch { fallbackToImages(session); }
+        continue;
+      }
+      const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
       try {
         if (current !== session) return;
-        const dimensionsChanged = canvas.width !== bitmap.width || canvas.height !== bitmap.height;
-        if (dimensionsChanged) {
-          canvas.width = bitmap.width;
-          canvas.height = bitmap.height;
-        }
-        if (!session.visible) {
-          clearTimeout(session.timer);
-          session.visible = true;
-          shell.classList.add('is-active');
-          byId('landing').hidden = true;
-          byId('tools').hidden = false;
-          byId('workspace').hidden = false;
-          byId('disconnect').focus();
-        }
-        if (dimensionsChanged || !resolution.textContent) {
-          resolution.textContent = bitmap.width + ' × ' + bitmap.height;
-        }
-        context.drawImage(bitmap, 0, 0);
-        fit();
+        drawFrame(session, bitmap, bitmap.width, bitmap.height);
+        send({ type: 'frameAck', frame: Number(sequence) });
       } finally {
         bitmap.close();
       }
@@ -231,7 +311,7 @@ document.addEventListener('fullscreenchange', () => {
 
 function send(command) {
   const session = current;
-  if (!session?.visible || session.socket.readyState !== WebSocket.OPEN) return;
+  if (!session?.approved || session.socket.readyState !== WebSocket.OPEN) return;
   if (command.type === 'move' && session.queued > 3) return;
   if (session.queued > 100 || session.socket.bufferedAmount > 64 * 1024) {
     reset(session, 'Соединение слишком медленное. Запросите новую ссылку.');

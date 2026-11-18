@@ -13,7 +13,8 @@ bin="$app/Contents/MacOS/MacRemote"
 mkdir -p "$app/Contents/MacOS"
 
 compile() {
-    xcrun swiftc -sdk "$sdk" -target "$1-apple-macos13.0" -O -parse-as-library \
+    xcrun swiftc -sdk "$sdk" -module-cache-path "$PWD/.build/module-cache/$1" \
+        -target "$1-apple-macos13.0" -O -parse-as-library \
         Sources/MacRemote/*.swift -o "$2"
 }
 

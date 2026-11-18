@@ -91,7 +91,12 @@ sockets.on('connection', socket => {
       if (!room?.active || data.length < 29) return;
       const target = role === 'host' ? room.viewer : room.host;
       if (target?.readyState !== WebSocket.OPEN) return;
-      if (role === 'host' && target.bufferedAmount > 384 * 1024) return;
+      // Paced video has dependent H.264 frames. The host bounds this stream with encrypted display ACKs.
+      if (role === 'host' && !room.paced && target.bufferedAmount > 384 * 1024) return;
+      if (role === 'host' && room.paced && target.bufferedAmount > 2 * 768 * 1024) {
+        endRoom(room, 'ended');
+        return;
+      }
       if (role === 'viewer' && (data.length > 2048 || target.bufferedAmount > 64 * 1024)) {
         endRoom(room, 'ended');
         return;
@@ -124,7 +129,7 @@ sockets.on('connection', socket => {
       && typeof message.ticket === 'string' && tokenPattern.test(message.ticket)
       && !rooms.has(message.room) && rooms.size < 8) {
       clearTimeout(authTimeout);
-      room = { id: message.room, ticket: message.ticket, host: socket, active: false };
+      room = { id: message.room, ticket: message.ticket, host: socket, active: false, supportsPacing: message.paced === '1' };
       role = 'host';
       rooms.set(room.id, room);
       send(socket, 'ready');
@@ -136,6 +141,7 @@ sockets.on('connection', socket => {
       room = requested;
       role = 'viewer';
       room.viewer = socket;
+      room.paced = room.supportsPacing && message.paced === true;
       room.approvalTimeout = setTimeout(() => endRoom(room, 'expired'), 60_000);
       send(socket, 'waiting');
       send(room.host, 'request');

@@ -23,6 +23,7 @@ final class HostSession: ObservableObject {
     private var input: RemoteInput?
     private let runtime = DesktopRuntime()
     private var runtimeStarter: Task<Void, Never>?
+    private let framePacer = FramePacer()
 
     init() {
         runtime.onFailure = { [weak self] message in self?.stop(message) }
@@ -112,7 +113,7 @@ final class HostSession: ObservableObject {
             receiver = Task { [weak self] in
                 guard let self else { return }
                 do {
-                    try await self.send(["type": "host", "room": room, "ticket": cipher.ticket, "key": key], on: socket)
+                    try await self.send(["type": "host", "room": room, "ticket": cipher.ticket, "key": key, "paced": "1"], on: socket)
                     while !Task.isCancelled {
                         let message = try await socket.receive()
                         guard self.socket === socket else { return }
@@ -151,8 +152,6 @@ final class HostSession: ObservableObject {
                 try Task.checkCancellation()
                 try await capture.start()
                 try Task.checkCancellation()
-                try await self.send(["type": "approve"], on: socket)
-                try Task.checkCancellation()
                 guard self.socket === socket else {
                     await capture.stop()
                     return
@@ -161,6 +160,10 @@ final class HostSession: ObservableObject {
                 pending = nil
                 self.input = RemoteInput(displayID: capture.displayID)
                 self.phase = .active
+                // Be ready for stream negotiation as soon as the viewer receives approval.
+                try await self.send(["type": "approve"], on: socket)
+                try Task.checkCancellation()
+                guard self.socket === socket else { return }
                 self.startSending(capture, on: socket)
             } catch {
                 if let pending { await pending.stop() }
@@ -182,6 +185,7 @@ final class HostSession: ObservableObject {
     }
 
     func stop(_ reason: String? = nil, detail: String? = nil) {
+        framePacer.stop()
         runtimeStarter?.cancel()
         runtimeStarter = nil
         runtime.stop()
@@ -211,8 +215,14 @@ final class HostSession: ObservableObject {
     private func startSending(_ capture: ScreenFeed, on socket: URLSessionWebSocketTask) {
         sender = Task { [weak self] in
             do {
-                for try await jpeg in capture.frames {
-                    guard let self, self.socket === socket, let packet = try self.cipher?.frame(jpeg) else { return }
+                var frames = capture.frames.makeAsyncIterator()
+                while !Task.isCancelled {
+                    guard let self, self.socket === socket else { return }
+                    try await self.framePacer.waitForCapacity()
+                    capture.requestFrame()
+                    guard let frame = try await frames.next(), self.socket === socket,
+                          let packet = try self.cipher?.frame(frame), let sequence = self.cipher?.lastFrameSequence else { break }
+                    self.framePacer.sent(sequence)
                     try await socket.send(.data(packet))
                 }
                 guard let self, self.socket === socket else { return }
@@ -251,7 +261,16 @@ final class HostSession: ObservableObject {
             }
         case .data(let data):
             guard phase == .active, let command = cipher?.command(data) else { return }
-            input?.apply(command)
+            switch command.type {
+            case .stream:
+                guard command.codec == "h264" || command.codec == "jpeg" else { return }
+                framePacer.configure()
+                capture?.configure(video: command.codec == "h264")
+            case .frameAck:
+                if let sequence = command.frame { framePacer.acknowledge(sequence) }
+            default:
+                input?.apply(command)
+            }
         @unknown default:
             break
         }
