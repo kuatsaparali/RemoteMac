@@ -10,7 +10,7 @@ final class HostSession: ObservableObject {
     @Published private(set) var screenAllowed = false
     @Published private(set) var inputAllowed = false
     @Published private(set) var invitation: URL?
-    @Published private(set) var notice: String?
+    @Published private(set) var notice: SessionNotice?
 
     private let network = URLSession(configuration: .ephemeral)
     private var socket: URLSessionWebSocketTask?
@@ -32,7 +32,7 @@ final class HostSession: ObservableObject {
         guard phase == .idle else { return }
         refreshPermissions()
         guard screenAllowed, inputAllowed else {
-            notice = SessionError.permissions.localizedDescription
+            notice = SessionNotice(key: SessionError.permissions.localizedDescription)
             return
         }
         notice = nil
@@ -130,7 +130,7 @@ final class HostSession: ObservableObject {
             }
         } catch {
             runtime.stop()
-            notice = error.localizedDescription
+            notice = SessionNotice(key: error.localizedDescription)
         }
     }
 
@@ -165,7 +165,7 @@ final class HostSession: ObservableObject {
             } catch {
                 if let pending { await pending.stop() }
                 guard self.socket === socket else { return }
-                self.stop("Не удалось начать показ экрана. " + error.localizedDescription)
+                self.stop("Не удалось начать показ экрана.", detail: error.localizedDescription)
             }
         }
     }
@@ -181,7 +181,7 @@ final class HostSession: ObservableObject {
         }
     }
 
-    func stop(_ reason: String? = nil) {
+    func stop(_ reason: String? = nil, detail: String? = nil) {
         runtimeStarter?.cancel()
         runtimeStarter = nil
         runtime.stop()
@@ -204,7 +204,7 @@ final class HostSession: ObservableObject {
         cipher = nil
         invitation = nil
         phase = .idle
-        notice = reason
+        notice = reason.map { SessionNotice(key: $0, detail: detail) }
         if let feed { Task { await feed.stop() } }
     }
 

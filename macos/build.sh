@@ -30,6 +30,8 @@ else
 fi
 
 cp Info.plist "$app/Contents/Info.plist"
+mkdir -p "$app/Contents/Resources"
+cp -R Resources/. "$app/Contents/Resources/"
 codesign --force --sign "${MACREMOTE_SIGN_IDENTITY:--}" "$app"
 codesign --verify --strict "$app"
 printf '%s\n' "$app"

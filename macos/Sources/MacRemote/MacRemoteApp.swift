@@ -23,6 +23,7 @@ struct MacRemoteApp: App {
 struct HostView: View {
     @StateObject private var host = HostSession()
     @AppStorage("relayAddress") private var address = "http://localhost:8787"
+    @AppStorage("appLanguage") private var language = AppLanguage.preferred.rawValue
     @State private var key = ""
     @State private var copied = false
     @State private var ownServer = false
@@ -42,7 +43,7 @@ struct HostView: View {
             }
 
             if let notice = host.notice {
-                Label(notice, systemImage: "info.circle")
+                Label(notice.text, systemImage: "info.circle")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -51,6 +52,7 @@ struct HostView: View {
         }
         .padding(27)
         .frame(width: 536)
+        .environment(\.locale, Locale(identifier: language))
         .onAppear { host.refreshPermissions() }
         .onChange(of: scenePhase) { phase in
             if phase == .active { host.refreshPermissions() }
@@ -81,16 +83,25 @@ struct HostView: View {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text("MacRemote").font(.system(size: 25, weight: .semibold))
-                Text("Удалённый доступ к этому Mac").font(.callout).foregroundStyle(.secondary)
+                Text(L10n.text("Удалённый доступ к этому Mac")).font(.callout).foregroundStyle(.secondary)
             }
+            .accessibilityElement(children: .combine)
+            Spacer(minLength: 12)
+            Picker("Язык / Language", selection: $language) {
+                Text("Русский").tag(AppLanguage.russian.rawValue)
+                Text("English").tag(AppLanguage.english.rawValue)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(width: 156)
+            .accessibilityLabel("Язык / Language")
         }
-        .accessibilityElement(children: .combine)
     }
 
     private var setup: some View {
         VStack(alignment: .leading, spacing: 17) {
             VStack(alignment: .leading, spacing: 9) {
-                Text("Разрешения macOS").font(.headline)
+                Text(L10n.text("Разрешения macOS")).font(.headline)
                 VStack(spacing: 0) {
                     permission("Запись экрана", icon: "rectangle.inset.filled", allowed: host.screenAllowed,
                                help: "Показывает основной экран", action: host.grantScreenPermission)
@@ -100,42 +111,42 @@ struct HostView: View {
                 }
                 .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 10))
                 if !ready {
-                    Text("После выдачи разрешений вернитесь сюда. Если статус не обновится, перезапустите MacRemote.")
+                    Text(L10n.text("После выдачи разрешений вернитесь сюда. Если статус не обновится, перезапустите MacRemote."))
                         .font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
 
             VStack(alignment: .leading, spacing: 9) {
-                Text("Подключение через интернет").font(.headline)
-                Text("Создайте ссылку и откройте её на другом устройстве. Запрос доступа нужно подтвердить на этом Mac.")
+                Text(L10n.text("Подключение через интернет")).font(.headline)
+                Text(L10n.text("Создайте ссылку и откройте её на другом устройстве. Запрос доступа нужно подтвердить на этом Mac."))
                     .font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Toggle("Использовать свой сервер", isOn: $ownServer)
+                Toggle(L10n.text("Использовать свой сервер"), isOn: $ownServer)
                     .font(.callout)
                 if ownServer {
                 Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
                     GridRow {
-                        Text("Адрес").foregroundStyle(.secondary)
+                        Text(L10n.text("Адрес")).foregroundStyle(.secondary)
                         TextField("https://…", text: $address)
-                            .accessibilityLabel("Адрес сервера")
+                            .accessibilityLabel(L10n.text("Адрес сервера"))
                     }
                     GridRow {
-                        Text("Ключ").foregroundStyle(.secondary)
-                        SecureField("Из окна запущенного сервера", text: $key)
-                            .accessibilityLabel("Ключ сервера")
+                        Text(L10n.text("Ключ")).foregroundStyle(.secondary)
+                        SecureField(L10n.text("Из окна запущенного сервера"), text: $key)
+                            .accessibilityLabel(L10n.text("Ключ сервера"))
                     }
                 }
                 .controlSize(.large)
                 } else {
-                    Text("Временное подключение создаётся через Cloudflare. Ссылка действует, пока открыт сеанс.")
+                    Text(L10n.text("Временное подключение создаётся через Cloudflare. Ссылка действует, пока открыт сеанс."))
                         .font(.caption).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
             HStack {
                 Spacer()
-                Button("Создать ссылку") {
+                Button(L10n.text("Создать ссылку")) {
                     if ownServer { host.start(address: address, hostKey: key) }
                     else { host.startInternet() }
                 }
@@ -156,17 +167,17 @@ struct HostView: View {
                 .frame(width: 20)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.callout.weight(.medium))
-                Text(help).font(.caption).foregroundStyle(.secondary)
+                Text(L10n.text(title)).font(.callout.weight(.medium))
+                Text(L10n.text(help)).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
             if allowed {
-                Label("Включено", systemImage: "checkmark.circle.fill")
+                Label(L10n.text("Включено"), systemImage: "checkmark.circle.fill")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             } else {
-                Button("Разрешить") { action() }
-                    .accessibilityLabel("Разрешить: " + title)
+                Button(L10n.text("Разрешить")) { action() }
+                    .accessibilityLabel(L10n.text("Разрешить") + " " + L10n.text(title))
             }
         }
         .padding(11)
@@ -181,9 +192,9 @@ struct HostView: View {
                     .frame(width: 27)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(sessionStatus.title).font(.title3.weight(.semibold))
+                    Text(L10n.text(sessionStatus.title)).font(.title3.weight(.semibold))
                         .accessibilityAddTraits(.isHeader)
-                    Text(sessionStatus.detail).font(.callout).foregroundStyle(.secondary)
+                    Text(L10n.text(sessionStatus.detail)).font(.callout).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
@@ -195,14 +206,14 @@ struct HostView: View {
             HStack {
                 Spacer()
                 if host.phase == .request {
-                    Button("Отклонить") { host.reject() }
+                    Button(L10n.text("Отклонить")) { host.reject() }
                         .keyboardShortcut(.cancelAction)
-                    Button("Разрешить доступ") { host.approve() }
+                    Button(L10n.text("Разрешить доступ")) { host.approve() }
                         .buttonStyle(.borderedProminent)
                 } else if let link = host.invitation {
-                    Button("Отменить ссылку") { host.stop() }
+                    Button(L10n.text("Отменить ссылку")) { host.stop() }
                         .keyboardShortcut(.cancelAction)
-                    Button(copied ? "Ссылка скопирована" : "Скопировать ссылку") {
+                    Button(L10n.text(copied ? "Ссылка скопирована" : "Скопировать ссылку")) {
                         let pasteboard = NSPasteboard.general
                         pasteboard.clearContents()
                         copied = pasteboard.setString(link.absoluteString, forType: .string)
@@ -210,7 +221,7 @@ struct HostView: View {
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
                 } else {
-                    Button(host.phase == .active ? "Завершить сеанс" : "Отмена", role: .destructive) {
+                    Button(L10n.text(host.phase == .active ? "Завершить сеанс" : "Отмена"), role: .destructive) {
                         host.stop(host.phase == .active ? "Сеанс завершён." : nil)
                     }
                     .keyboardShortcut(.cancelAction)

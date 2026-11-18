@@ -10,8 +10,8 @@ Download the app from [GitHub Releases](https://github.com/kuatsaparali/RemoteMa
 
 | Your Mac | Download |
 | --- | --- |
-| Apple Silicon, including M1, M2, M3, M4 and later | [MacRemote for Apple Silicon](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.2.0/MacRemote-0.2.0-macOS-arm64.zip) |
-| Intel processor | [MacRemote for Intel](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.2.0/MacRemote-0.2.0-macOS-x86_64.zip) |
+| Apple Silicon, including M1, M2, M3, M4 and later | [MacRemote for Apple Silicon](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.3.0/MacRemote-0.3.0-macOS-arm64.zip) |
+| Intel processor | [MacRemote for Intel](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.3.0/MacRemote-0.3.0-macOS-x86_64.zip) |
 
 The standalone downloads require macOS 15 Sequoia or later and an internet connection, matching the bundled cloudflared binaries. Find your processor in **Apple menu → About This Mac**. Release downloads include the connection services, so you can launch the app from Finder without installing Homebrew, Node.js or Cloudflare Tunnel.
 
@@ -24,7 +24,7 @@ The standalone downloads require macOS 15 Sequoia or later and an internet conne
 
 This release uses an ad hoc signature and has not been notarized by Apple. If macOS blocks the first launch and you choose to proceed, open **System Settings → Privacy & Security → Open Anyway** after trying to open it. [Apple's first-launch instructions](https://support.apple.com/en-us/102445)
 
-The current app and browser interface use Russian labels. The steps below include their English meanings.
+The Mac app supports **Russian and English**. Use the **Русский / English** selector in the top-right corner to switch instantly. Your choice is saved for the next launch, and the initial language follows your macOS language. Buttons, setup instructions, session status and app error messages follow your selection. macOS system menus and permission dialogs use the macOS language settings. The browser viewer currently uses Russian labels; the steps below include their English meanings.
 
 ## Start a session
 
