@@ -38,7 +38,7 @@ private final class FrameOutput: NSObject, SCStreamOutput, SCStreamDelegate {
     func configure(video: Bool) {
         queue.async {
             self.wantsVideo = video
-            self.interval = video ? 1.0 / 30 : 1.0 / 20
+            self.interval = video ? 1.0 / Double(H264Encoder.frameRate) : 1.0 / 20
             self.restartEncoder = true
             self.encodeLatest()
         }
@@ -158,7 +158,7 @@ final class ScreenFeed {
     func requestFrame() { output.requestFrame() }
     func configure(video: Bool) {
         output.configure(video: video)
-        let config = Self.configuration(width: width, height: height, frameRate: video ? 30 : 20)
+        let config = Self.configuration(width: width, height: height, frameRate: video ? H264Encoder.frameRate : 20)
         stream.updateConfiguration(config, completionHandler: { _ in })
     }
     func start() async throws { try await stream.startCapture() }

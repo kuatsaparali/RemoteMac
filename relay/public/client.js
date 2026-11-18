@@ -237,7 +237,7 @@ function decodeVideo(session, bytes, sequence, skipped) {
     // Avoid hardware decoder buffering when desktop updates are sparse.
     session.decoder.configure({ codec, codedWidth: width, codedHeight: height, optimizeForLatency: true, hardwareAcceleration: 'prefer-software' });
   }
-  if (session.decoder.decodeQueueSize > 2) { fallbackToImages(session); return; }
+  if (session.decoder.decodeQueueSize >= 4) { fallbackToImages(session); return; }
   session.videoFrames.set(timestamp, sequence);
   clearTimeout(session.videoTimer);
   session.videoTimer = setTimeout(() => fallbackToImages(session), 1000);
@@ -245,7 +245,7 @@ function decodeVideo(session, bytes, sequence, skipped) {
 }
 
 async function postFrame(session, packet) {
-  // New hosts send at most two unacknowledged frames. Bound legacy JPEG senders too.
+  // New hosts send at most four unacknowledged frames. Bound legacy JPEG senders too.
   if (session.packets.length >= 4) session.packets.shift();
   session.packets.push(packet);
   if (session.rendering) return;

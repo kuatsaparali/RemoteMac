@@ -264,8 +264,9 @@ final class HostSession: ObservableObject {
             switch command.type {
             case .stream:
                 guard command.codec == "h264" || command.codec == "jpeg" else { return }
-                framePacer.configure()
-                capture?.configure(video: command.codec == "h264")
+                let video = command.codec == "h264"
+                framePacer.configure(video: video)
+                capture?.configure(video: video)
             case .frameAck:
                 if let sequence = command.frame { framePacer.acknowledge(sequence) }
             default:

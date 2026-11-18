@@ -4,6 +4,8 @@ import VideoToolbox
 
 /// One low-latency H.264 access unit per submitted frame, with no B-frame reordering.
 final class H264Encoder {
+    static let frameRate: Int32 = 60
+
     enum Output { case frame(Data), dropped, failed }
     private var session: VTCompressionSession?
     private let width: Int
@@ -24,9 +26,9 @@ final class H264Encoder {
                 (kVTCompressionPropertyKey_RealTime, kCFBooleanTrue),
                 (kVTCompressionPropertyKey_AllowFrameReordering, kCFBooleanFalse),
                 (kVTCompressionPropertyKey_ProfileLevel, kVTProfileLevel_H264_Baseline_AutoLevel),
-                (kVTCompressionPropertyKey_ExpectedFrameRate, 30 as CFNumber),
-                (kVTCompressionPropertyKey_AverageBitRate, 2_000_000 as CFNumber),
-                (kVTCompressionPropertyKey_MaxKeyFrameInterval, 60 as CFNumber),
+                (kVTCompressionPropertyKey_ExpectedFrameRate, Int(Self.frameRate) as CFNumber),
+                (kVTCompressionPropertyKey_AverageBitRate, 3_000_000 as CFNumber),
+                (kVTCompressionPropertyKey_MaxKeyFrameInterval, Int(Self.frameRate * 2) as CFNumber),
                 (kVTCompressionPropertyKey_MaxKeyFrameIntervalDuration, 2 as CFNumber),
             ]
             for (key, value) in settings {

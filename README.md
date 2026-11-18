@@ -10,8 +10,8 @@ Download the app from [GitHub Releases](https://github.com/kuatsaparali/RemoteMa
 
 | Your Mac | Download |
 | --- | --- |
-| Apple Silicon, including M1, M2, M3, M4 and later | [MacRemote for Apple Silicon](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.4.0/MacRemote-0.4.0-macOS-arm64.zip) |
-| Intel processor | [MacRemote for Intel](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.4.0/MacRemote-0.4.0-macOS-x86_64.zip) |
+| Apple Silicon, including M1, M2, M3, M4 and later | [MacRemote for Apple Silicon](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.5.0/MacRemote-0.5.0-macOS-arm64.zip) |
+| Intel processor | [MacRemote for Intel](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.5.0/MacRemote-0.5.0-macOS-x86_64.zip) |
 
 The standalone downloads require macOS 15 Sequoia or later and an internet connection, matching the bundled cloudflared binaries. Find your processor in **Apple menu → About This Mac**. Release downloads include the connection services, so you can launch the app from Finder without installing Homebrew, Node.js or Cloudflare Tunnel.
 
@@ -52,7 +52,7 @@ MacRemote captures the main display with ScreenCaptureKit and injects mouse and 
 
 The bundled relay listens on a randomly assigned loopback port. A temporary Cloudflare Tunnel makes that service reachable through HTTPS. The browser client is delivered through the same tunnel, and Cloudflare participates in serving that client. For startup checks, the app can fall back to Cloudflare public DNS if the local resolver cannot find the new tunnel hostname. The temporary hostname changes for each session. [Cloudflare Tunnel documentation](https://developers.cloudflare.com/tunnel/concepts/#quick-tunnels)
 
-This version supports one main display and one viewer, at a maximum capture size of 1440 × 960. Compatible browsers receive H.264 video encoded through VideoToolbox at up to 30 frames per second. The browser prefers software H.264 decoding to avoid buffering sparse desktop updates. If video decoding is unavailable or fails, the session switches to JPEG at up to 20 frames per second. New hosts and viewers use encrypted frame acknowledgments to limit the stream to two unacknowledged frames, so a slow connection does not build up an old-frame backlog. Legacy viewers continue to receive JPEG at up to 12 frames per second. Actual frame rate and latency depend on your connection and devices. Audio, file transfer, clipboard synchronization and unattended access are outside the current feature set.
+This version supports one main display and one viewer, at a maximum capture size of 1440 × 960. Compatible browsers receive H.264 video encoded through VideoToolbox at up to 60 frames per second. The browser prefers software H.264 decoding to avoid buffering sparse desktop updates. If video decoding is unavailable or fails, the session switches to JPEG at up to 20 frames per second. New hosts and viewers use encrypted frame acknowledgments to limit the stream to four unacknowledged H.264 frames or two JPEG frames, so a slow connection does not build up an old-frame backlog. Legacy viewers continue to receive JPEG at up to 12 frames per second. The actual frame rate depends on display updates, the network round-trip time, and how quickly the browser decodes and draws frames. Audio, file transfer, clipboard synchronization and unattended access are outside the current feature set.
 
 ## Use your own relay
 
