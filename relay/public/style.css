@@ -1,0 +1,197 @@
+:root {
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #172031;
+  background: #f4f6f9;
+  color-scheme: light;
+  --accent: #234dca;
+  --accent-hover: #1b3ca5;
+  --line: #dbe1eb;
+  --muted: #47566d;
+  --stage: #121a26;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; }
+::selection { background: #cbd9ff; color: #172031; }
+:focus-visible { outline: 3px solid #5178ec; outline-offset: 3px; }
+button, input { font: inherit; }
+
+.shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.topbar {
+  min-height: 64px;
+  padding: 10px 28px;
+  display: flex;
+  gap: 12px 20px;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 17px;
+  font-weight: 710;
+  letter-spacing: -.025em;
+}
+
+.monitor {
+  display: inline-block;
+  position: relative;
+  margin-bottom: 3px;
+  width: 20px;
+  height: 15px;
+  border: 2px solid var(--accent);
+  border-radius: 3px;
+}
+
+.monitor::after {
+  position: absolute;
+  content: "";
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+  bottom: -5px;
+  left: 3px;
+  background: var(--accent);
+}
+
+.landing {
+  display: grid;
+  place-items: center;
+  padding: 24px 18px max(28px, 9vh);
+}
+
+.connection {
+  width: min(100%, 476px);
+  padding: 32px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: 30px;
+  font-weight: 690;
+  line-height: 1.15;
+  letter-spacing: -.032em;
+}
+
+p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+form { margin-top: 24px; display: grid; gap: 14px; }
+label { display: block; margin-bottom: 7px; font-size: 13px; font-weight: 650; }
+input {
+  width: 100%;
+  min-height: 45px;
+  padding: 9px 11px;
+  border: 1px solid #aab7cb;
+  background: #fff;
+  color: inherit;
+  border-radius: 7px;
+}
+input::placeholder { color: #61728b; }
+
+button {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: inherit;
+  font-weight: 650;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.primary { background: var(--accent); color: #fff; }
+.primary:hover { background: var(--accent-hover); }
+.primary:disabled { background: #e3e8f2; color: #495970; cursor: progress; }
+
+.notice { margin-top: 15px; font-size: 14px; color: #a12a36; }
+.tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.quiet { background: transparent; }
+.quiet:hover { background: #edf1f8; }
+.quiet[aria-pressed="true"] { background: #eaf0ff; color: #1d43b7; }
+.stop { color: #9c2735; border-color: #e5bdc5; background: #fff8f9; }
+.stop:hover { background: #fcecef; }
+
+.shell.is-active { height: 100dvh; }
+.workspace {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  color: #e3eaf7;
+  background: var(--stage);
+}
+
+.viewport {
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+canvas {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  margin: auto;
+  outline-offset: -3px;
+  background: #080b0f;
+  touch-action: none;
+  user-select: none;
+  cursor: default;
+}
+
+.session-bar {
+  display: flex;
+  gap: 6px 20px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  padding: 9px 20px;
+  border-top: 1px solid #344051;
+  background: #1b2534;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.live { display: inline-flex; align-items: center; gap: 8px; font-weight: 650; }
+.live span { width: 7px; height: 7px; border-radius: 50%; background: #74dca8; }
+.shortcuts, .resolution { color: #bfcce1; }
+.resolution { font-variant-numeric: tabular-nums; }
+
+@media (max-width: 620px) {
+  .topbar { padding: 9px 12px; }
+  .connection { padding: 24px; }
+  .tools { gap: 3px; }
+  .tools button { padding-inline: 8px; font-size: 12px; }
+  .session-bar { padding-inline: 12px; }
+  .shortcuts { order: 1; flex-basis: 100%; }
+  .viewport { padding: 4px; }
+}
+@media (max-width: 450px) {
+  .is-active .topbar { flex-wrap: wrap; }
+  .is-active .tools { width: 100%; justify-content: space-between; }
+}
+
+.touch-hint { display: none; }
+@media (pointer: coarse) {
+  .desktop-hint { display: none; }
+  .touch-hint { display: inline; }
+}

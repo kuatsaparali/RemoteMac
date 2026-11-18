@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>MacRemote</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/client.js" defer></script>
+</head>
+<body>
+  <div class="shell" id="shell">
+    <header class="topbar">
+      <div class="brand"><span class="monitor" aria-hidden="true"></span>MacRemote</div>
+      <div class="tools" id="tools" hidden>
+        <button type="button" class="quiet" id="keyboard" aria-pressed="false">Клавиатура</button>
+        <button type="button" class="quiet" id="fullscreen" aria-pressed="false">На весь экран</button>
+        <button type="button" class="stop" id="disconnect">Отключиться</button>
+      </div>
+    </header>
+    <main class="landing" id="landing">
+      <section class="connection" aria-labelledby="heading">
+        <h1 id="heading">Подключение к Mac</h1>
+        <p id="description">Откройте приглашение из MacRemote или вставьте ссылку ниже.</p>
+        <form id="form">
+          <div id="link-field">
+            <label for="invite">Ссылка-приглашение</label>
+            <input id="invite" type="url" placeholder="https://…" spellcheck="false" autocomplete="off" inputmode="url" required>
+          </div>
+          <button class="primary" type="submit" id="connect">Подключиться</button>
+        </form>
+        <p id="notice" class="notice" role="status" hidden></p>
+      </section>
+    </main>
+    <main class="workspace" id="workspace" hidden>
+      <div class="viewport" id="viewport">
+        <canvas id="screen" tabindex="0" aria-label="Удалённый экран Mac" aria-describedby="keyboard-hint"></canvas>
+      </div>
+      <footer class="session-bar">
+        <span class="live"><span aria-hidden="true"></span>Сеанс открыт</span>
+        <span class="shortcuts" id="keyboard-hint"><span class="desktop-hint">Щёлкните по экрану для управления. Shift + Esc освобождает клавиатуру.</span><span class="touch-hint">Касание — щелчок. Для ввода нужна физическая клавиатура.</span></span>
+        <span class="resolution" id="resolution"></span>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

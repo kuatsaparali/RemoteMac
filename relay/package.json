@@ -1,0 +1,8 @@
+{
+  "name": "mac-remote-relay",
+  "version": "0.1.0",
+  "private": true,
+  "engines": { "node": ">=22" },
+  "scripts": { "start": "node server.mjs" },
+  "dependencies": { "ws": "8.23.0" }
+}
