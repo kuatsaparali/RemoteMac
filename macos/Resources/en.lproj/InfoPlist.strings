@@ -1,1 +1,1 @@
-"NSScreenCaptureUsageDescription" = "MacRemote shares your main display only during a remote session you approve.";
+"NSScreenCaptureUsageDescription" = "MacRemote shares your main display and system audio only during a session you approve.";

@@ -15,7 +15,7 @@
 body { margin: 0; }
 ::selection { background: #cbd9ff; color: #172031; }
 :focus-visible { outline: 3px solid #5178ec; outline-offset: 3px; }
-button, input { font: inherit; }
+button, input, select { font: inherit; }
 
 .shell {
   min-height: 100vh;
@@ -42,6 +42,18 @@ button, input { font: inherit; }
   font-size: 17px;
   font-weight: 710;
   letter-spacing: -.025em;
+}
+
+.language {
+  margin-left: auto;
+  min-height: 36px;
+  max-width: 125px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+  color: inherit;
+  font-size: 14px;
 }
 
 .monitor {
@@ -172,7 +184,7 @@ canvas {
 }
 
 .live { display: inline-flex; align-items: center; gap: 8px; font-weight: 650; }
-.live span { width: 7px; height: 7px; border-radius: 50%; background: #74dca8; }
+.live span[aria-hidden] { width: 7px; height: 7px; border-radius: 50%; background: #74dca8; }
 .shortcuts, .resolution { color: #bfcce1; }
 .resolution { font-variant-numeric: tabular-nums; }
 
@@ -185,7 +197,7 @@ canvas {
   .shortcuts { order: 1; flex-basis: 100%; }
   .viewport { padding: 4px; }
 }
-@media (max-width: 450px) {
+@media (max-width: 680px) {
   .is-active .topbar { flex-wrap: wrap; }
   .is-active .tools { width: 100%; justify-content: space-between; }
 }

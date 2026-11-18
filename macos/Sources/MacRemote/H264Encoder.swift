@@ -4,7 +4,7 @@ import VideoToolbox
 
 /// One low-latency H.264 access unit per submitted frame, with no B-frame reordering.
 final class H264Encoder {
-    static let frameRate: Int32 = 60
+    static let frameRate: Int32 = 120
 
     enum Output { case frame(Data), dropped, failed }
     private var session: VTCompressionSession?
@@ -27,7 +27,7 @@ final class H264Encoder {
                 (kVTCompressionPropertyKey_AllowFrameReordering, kCFBooleanFalse),
                 (kVTCompressionPropertyKey_ProfileLevel, kVTProfileLevel_H264_Baseline_AutoLevel),
                 (kVTCompressionPropertyKey_ExpectedFrameRate, Int(Self.frameRate) as CFNumber),
-                (kVTCompressionPropertyKey_AverageBitRate, 3_000_000 as CFNumber),
+                (kVTCompressionPropertyKey_AverageBitRate, 5_000_000 as CFNumber),
                 (kVTCompressionPropertyKey_MaxKeyFrameInterval, Int(Self.frameRate * 2) as CFNumber),
                 (kVTCompressionPropertyKey_MaxKeyFrameIntervalDuration, 2 as CFNumber),
             ]
@@ -93,14 +93,13 @@ final class H264Encoder {
             parameterSets.append(Data(bytes: pointer, count: length))
         }
         guard let sps = parameterSets.first, sps.count >= 4, lengthBytes == 4 else { return nil }
-        let seconds = sample.presentationTimeStamp.seconds
-        guard seconds.isFinite, seconds >= 0 else { return nil }
+        guard let timestamp = sample.presentationTimeStamp.mediaMicroseconds else { return nil }
         // MRV1, keyframe flag, profile/compatibility/level, dimensions, timestamp, Annex B access unit.
         var packet = Data([0x4d, 0x52, 0x56, 1, keyframe ? 1 : 0])
         packet.append(sps.subdata(in: 1..<4))
         var w = UInt16(width).bigEndian
         var h = UInt16(height).bigEndian
-        var time = UInt64(seconds * 1_000_000).bigEndian
+        var time = timestamp.bigEndian
         withUnsafeBytes(of: &w) { packet.append(contentsOf: $0) }
         withUnsafeBytes(of: &h) { packet.append(contentsOf: $0) }
         withUnsafeBytes(of: &time) { packet.append(contentsOf: $0) }

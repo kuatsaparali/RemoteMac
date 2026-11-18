@@ -13,6 +13,7 @@ const canvas = byId('screen');
 const viewport = byId('viewport');
 const keyboard = byId('keyboard');
 const fullscreen = byId('fullscreen');
+const sound = byId('sound');
 const resolution = byId('resolution');
 const context = canvas.getContext('2d', { alpha: false, desynchronized: true });
 
@@ -26,7 +27,7 @@ const buttons = new Set();
 if (initialLink) {
   field.hidden = true;
   invite.required = false;
-  description.textContent = 'Запрос нужно подтвердить на Mac, к которому вы подключаетесь.';
+  setText(description, 'Запрос нужно подтвердить на Mac, к которому вы подключаетесь.');
 }
 fullscreen.hidden = !document.fullscreenEnabled;
 
@@ -36,6 +37,9 @@ function reset(session, message) {
   clearTimeout(session?.timer);
   session?.socket?.close();
   clearTimeout(session?.videoTimer);
+  if (session) clearScheduledFrames(session);
+  session?.audio?.close();
+  sound.hidden = true;
   if (session?.decoder && session.decoder.state !== 'closed') session.decoder.close();
   resolution.textContent = '';
   keys.clear();
@@ -49,22 +53,22 @@ function reset(session, message) {
   shell.classList.remove('is-active');
   field.hidden = false;
   invite.required = true;
-  heading.textContent = 'Подключение к Mac';
-  description.textContent = 'Вставьте новую ссылку из MacRemote.';
+  setText(heading, 'Подключение к Mac');
+  setText(description, 'Вставьте новую ссылку из MacRemote.');
   connect.disabled = false;
-  connect.textContent = 'Подключиться';
+  setText(connect, 'Подключиться');
   showNotice(message);
   invite.focus();
 }
 
 function showNotice(message) {
-  notice.textContent = message ?? '';
+  setText(notice, message ?? '');
   notice.hidden = !message;
 }
 
 function wait(session, message, milliseconds, failure) {
   clearTimeout(session.timer);
-  description.textContent = message;
+  setText(description, message);
   session.timer = setTimeout(() => reset(session, failure), milliseconds);
 }
 
@@ -74,7 +78,7 @@ function base64url(bytes) {
 }
 
 async function start(match) {
-  const session = { commands: Promise.resolve(), queued: 0, sent: 0n, received: 0n, packets: [] };
+  const session = { commands: Promise.resolve(), queued: 0, sent: 0n, received: 0n, packets: [], displayQueue: [], audio: openSessionAudio() };
   current = session;
   invite.value = '';
   initialLink = undefined;
@@ -83,7 +87,7 @@ async function start(match) {
   invite.required = false;
   showNotice();
   connect.disabled = true;
-  connect.textContent = 'Подключаемся…';
+  setText(connect, 'Подключаемся…');
   wait(session, 'Соединяемся с сервером.', 12_000, 'Сервер не ответил. Проверьте интернет и запросите новую ссылку.');
   try {
     const secret = Uint8Array.from(atob(match[2].replaceAll('-', '+').replaceAll('_', '/') + '='), char => char.charCodeAt(0));
@@ -99,21 +103,24 @@ async function start(match) {
     socket.addEventListener('message', event => {
       if (current !== session) return;
       if (typeof event.data !== 'string') {
-        if (session.approved) postFrame(session, event.data);
+        if (session.approved && event.data.byteLength >= 29) {
+          if (new DataView(event.data).getUint32(0) === 3) postAudio(session, event.data);
+          else postFrame(session, event.data);
+        }
         return;
       }
       const message = JSON.parse(event.data);
       switch (message.type) {
         case 'waiting':
-          heading.textContent = 'Ждём подтверждения';
-          connect.textContent = 'Запрос отправлен';
+          setText(heading, 'Ждём подтверждения');
+          setText(connect, 'Запрос отправлен');
           wait(session, 'На удалённом Mac нужно нажать «Разрешить доступ».', 65_000, 'Время ожидания истекло.');
           showNotice();
           break;
         case 'active':
           session.approved = true;
           negotiateVideo(session);
-          heading.textContent = 'Получаем экран';
+          setText(heading, 'Получаем экран');
           wait(session, 'Подключение одобрено. Загружаем первый кадр.', 15_000, 'Экран не поступил. Проверьте разрешения на удалённом Mac.');
           break;
         case 'denied':
@@ -166,7 +173,7 @@ async function negotiateVideo(session) {
     } catch {}
   }
   if (current !== session) return;
-  send({ type: 'stream', codec: video ? 'h264' : 'jpeg' });
+  send({ type: 'stream', codec: video ? 'h264' : 'jpeg', audio: Boolean(session.audio) });
 }
 
 function fallbackToImages(session) {
@@ -176,7 +183,7 @@ function fallbackToImages(session) {
   if (session.decoder && session.decoder.state !== 'closed') session.decoder.close();
   session.decoder = undefined;
   session.videoFrames?.clear();
-  send({ type: 'stream', codec: 'jpeg' });
+  send({ type: 'stream', codec: 'jpeg', audio: Boolean(session.audio) });
 }
 
 function drawFrame(session, source, width, height) {
@@ -202,6 +209,93 @@ function drawFrame(session, source, width, height) {
   if (first || resized) fit();
 }
 
+function clearScheduledFrames(session) {
+  cancelAnimationFrame(session.displayHandle);
+  session.displayHandle = undefined;
+  for (const frame of session.displayQueue) frame.source.close();
+  session.displayQueue.length = 0;
+}
+
+function drawAndRelease(session, frame) {
+  try { drawFrame(session, frame.source, frame.width, frame.height); }
+  finally { frame.source.close(); }
+}
+
+function renderScheduled(session) {
+  session.displayHandle = undefined;
+  const audio = session.audio;
+  let next;
+  while (session.displayQueue.length) {
+    const frame = session.displayQueue[0];
+    if (audio.context.state === 'running' && audio.timeFor(frame.timestamp) > audio.playoutTime()) break;
+    session.displayQueue.shift();
+    next?.source.close();
+    next = frame;
+  }
+  if (next) drawAndRelease(session, next);
+  if (session.displayQueue.length) session.displayHandle = requestAnimationFrame(() => renderScheduled(session));
+}
+
+function presentFrame(session, source, width, height, timestamp) {
+  const frame = { source, width, height, timestamp };
+  const audio = session.audio;
+  if (audio?.anchor && audio.context.state === 'running' && Number.isFinite(timestamp)) {
+    if (session.displayQueue.length >= 32) session.displayQueue.shift().source.close();
+    session.displayQueue.push(frame);
+    session.displayHandle ??= requestAnimationFrame(() => renderScheduled(session));
+  } else {
+    clearScheduledFrames(session);
+    drawAndRelease(session, frame);
+  }
+}
+
+function updateSound(session) {
+  if (current !== session || !session.audio.receiving) return;
+  const on = !session.audio.muted && session.audio.context.state === 'running';
+  sound.hidden = false;
+  sound.setAttribute('aria-pressed', String(on));
+  setText(sound, on ? 'Звук вкл' : 'Звук выкл');
+}
+
+sound.addEventListener('click', async () => {
+  const session = current;
+  if (!session?.audio) return;
+  await session.audio.toggle();
+  updateSound(session);
+});
+
+async function postAudio(session, packet) {
+  const audio = session.audio;
+  if (!audio || packet.byteLength <= 41 || packet.byteLength > 33 * 1024) return;
+  if (audio.decodeQueue.length >= 8) audio.decodeQueue.shift();
+  audio.decodeQueue.push(packet);
+  if (audio.busy) return;
+  audio.busy = true;
+  try {
+    while (audio.decodeQueue.length && current === session) {
+      const next = audio.decodeQueue.shift();
+      const nonce = new DataView(next, 0, 12);
+      const sequence = nonce.getBigUint64(4);
+      if (sequence <= audio.sequence) continue;
+      try {
+        const bytes = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, session.key, next.slice(12));
+        if (current !== session) return;
+        audio.sequence = sequence;
+        audio.schedule(bytes);
+        if (!audio.receiving) {
+          audio.receiving = true;
+          audio.context.addEventListener('statechange', () => updateSound(session));
+          updateSound(session);
+        }
+      } catch {
+        // A missing or invalid audio packet can be skipped while video continues.
+      }
+    }
+  } finally {
+    audio.busy = false;
+  }
+}
+
 function decodeVideo(session, bytes, sequence, skipped) {
   if (session.videoDisabled) return;
   const header = new DataView(bytes);
@@ -219,25 +313,24 @@ function decodeVideo(session, bytes, sequence, skipped) {
     session.videoCodec = codec;
     session.decoder = new VideoDecoder({
       output(frame) {
-        try {
-          if (current !== session || session.videoDisabled) return;
-          const acknowledged = session.videoFrames.get(frame.timestamp);
-          for (const timestamp of session.videoFrames.keys()) {
-            if (timestamp <= frame.timestamp) session.videoFrames.delete(timestamp);
-          }
-          clearTimeout(session.videoTimer);
-          drawFrame(session, frame, frame.displayWidth, frame.displayHeight);
-          if (acknowledged !== undefined) send({ type: 'frameAck', frame: Number(acknowledged) });
-        } finally {
+        if (current !== session || session.videoDisabled) {
           frame.close();
+          return;
         }
+        const acknowledged = session.videoFrames.get(frame.timestamp);
+        for (const timestamp of session.videoFrames.keys()) {
+          if (timestamp <= frame.timestamp) session.videoFrames.delete(timestamp);
+        }
+        clearTimeout(session.videoTimer);
+        presentFrame(session, frame, frame.displayWidth, frame.displayHeight, frame.timestamp / 1e6);
+        if (acknowledged !== undefined) send({ type: 'frameAck', frame: Number(acknowledged) });
       },
       error() { fallbackToImages(session); },
     });
     // Avoid hardware decoder buffering when desktop updates are sparse.
     session.decoder.configure({ codec, codedWidth: width, codedHeight: height, optimizeForLatency: true, hardwareAcceleration: 'prefer-software' });
   }
-  if (session.decoder.decodeQueueSize >= 4) { fallbackToImages(session); return; }
+  if (session.decoder.decodeQueueSize >= 8) { fallbackToImages(session); return; }
   session.videoFrames.set(timestamp, sequence);
   clearTimeout(session.videoTimer);
   session.videoTimer = setTimeout(() => fallbackToImages(session), 1000);
@@ -245,8 +338,8 @@ function decodeVideo(session, bytes, sequence, skipped) {
 }
 
 async function postFrame(session, packet) {
-  // New hosts send at most four unacknowledged frames. Bound legacy JPEG senders too.
-  if (session.packets.length >= 4) session.packets.shift();
+  // New hosts send at most eight unacknowledged frames. Bound legacy JPEG senders too.
+  if (session.packets.length >= 8) session.packets.shift();
   session.packets.push(packet);
   if (session.rendering) return;
   session.rendering = true;
@@ -265,14 +358,16 @@ async function postFrame(session, packet) {
         catch { fallbackToImages(session); }
         continue;
       }
-      const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
-      try {
-        if (current !== session) return;
-        drawFrame(session, bitmap, bitmap.width, bitmap.height);
-        send({ type: 'frameAck', frame: Number(sequence) });
-      } finally {
+      const timestamped = bytes.byteLength > 12 && new DataView(bytes).getUint32(0) === 0x4d524a01;
+      const timestamp = timestamped ? Number(new DataView(bytes).getBigUint64(4)) / 1e6 : undefined;
+      const jpeg = timestamped ? new Uint8Array(bytes, 12) : bytes;
+      const bitmap = await createImageBitmap(new Blob([jpeg], { type: 'image/jpeg' }));
+      if (current !== session) {
         bitmap.close();
+        return;
       }
+      presentFrame(session, bitmap, bitmap.width, bitmap.height, timestamp);
+      send({ type: 'frameAck', frame: Number(sequence) });
     }
   } catch {
     reset(session, 'Не удалось прочитать защищённый кадр. Запросите новую ссылку.');
@@ -305,7 +400,7 @@ fullscreen.addEventListener('click', async () => {
 });
 document.addEventListener('fullscreenchange', () => {
   const expanded = Boolean(document.fullscreenElement);
-  fullscreen.textContent = expanded ? 'Выйти из полного экрана' : 'На весь экран';
+  setText(fullscreen, expanded ? 'Выйти из полного экрана' : 'На весь экран');
   fullscreen.setAttribute('aria-pressed', String(expanded));
 });
 

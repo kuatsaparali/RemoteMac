@@ -11,6 +11,8 @@ const roomPattern = /^[A-Za-z0-9_-]{22}$/;
 const rooms = new Map();
 const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
+  ['/locale.js', ['locale.js', 'text/javascript; charset=utf-8']],
+  ['/audio.js', ['audio.js', 'text/javascript; charset=utf-8']],
   ['/client.js', ['client.js', 'text/javascript; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
 ].map(([route, [file, type]]) => [
@@ -91,6 +93,8 @@ sockets.on('connection', socket => {
       if (!room?.active || data.length < 29) return;
       const target = role === 'host' ? room.viewer : room.host;
       if (target?.readyState !== WebSocket.OPEN) return;
+      // Audio is independently encrypted and can skip stale chunks under congestion.
+      if (role === 'host' && data.readUInt32BE(0) === 3 && target.bufferedAmount > 192 * 1024) return;
       // Paced video has dependent H.264 frames. The host bounds this stream with encrypted display ACKs.
       if (role === 'host' && !room.paced && target.bufferedAmount > 384 * 1024) return;
       if (role === 'host' && room.paced && target.bufferedAmount > 2 * 768 * 1024) {

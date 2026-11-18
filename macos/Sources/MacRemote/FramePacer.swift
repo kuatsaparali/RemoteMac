@@ -6,8 +6,8 @@ final class FramePacer {
     private var waiting: CheckedContinuation<Void, Error>?
 
     func configure(video: Bool) {
-        // At 60 fps, four frames cover about 67 ms of round-trip time.
-        limit = video ? 4 : 2
+        // At 120 fps, eight frames cover about 67 ms of round-trip time.
+        limit = video ? 8 : 2
         pending.removeAll()
         let continuation = waiting
         waiting = nil

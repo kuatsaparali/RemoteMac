@@ -17,6 +17,7 @@ private final class FrameOutput: NSObject, SCStreamOutput, SCStreamDelegate {
     private var encoding = false
     private var finished = false
     private var wantsVideo = false
+    private var timestamps = false
     private var restartEncoder = false
     private var interval = 1.0 / 12
     private var encoder: H264Encoder?
@@ -35,9 +36,10 @@ private final class FrameOutput: NSObject, SCStreamOutput, SCStreamDelegate {
         }
     }
 
-    func configure(video: Bool) {
+    func configure(video: Bool, audio: Bool) {
         queue.async {
             self.wantsVideo = video
+            self.timestamps = audio
             self.interval = video ? 1.0 / Double(H264Encoder.frameRate) : 1.0 / 20
             self.restartEncoder = true
             self.encodeLatest()
@@ -74,7 +76,7 @@ private final class FrameOutput: NSObject, SCStreamOutput, SCStreamDelegate {
                 interval = 1.0 / 20
             }
         }
-        guard let encoder else { jpeg(frame.pixels); return }
+        guard let encoder else { jpeg(frame.pixels, at: frame.time); return }
         encoding = true
         encoder.encode(frame.pixels, at: frame.time) { [weak self] result in
             guard let self else { return }
@@ -91,25 +93,33 @@ private final class FrameOutput: NSObject, SCStreamOutput, SCStreamDelegate {
                     case .dropped:
                         self.encoder?.stop()
                         self.encoder = nil
-                        self.jpeg(frame.pixels)
+                        self.jpeg(frame.pixels, at: frame.time)
                     case .failed:
                         self.encoder?.stop()
                         self.encoder = nil
                         self.wantsVideo = false
                         self.interval = 1.0 / 20
-                        self.jpeg(frame.pixels)
+                        self.jpeg(frame.pixels, at: frame.time)
                     }
                 }
             }
         }
     }
 
-    private func jpeg(_ pixels: CVPixelBuffer) {
+    private func jpeg(_ pixels: CVPixelBuffer, at time: CMTime) {
         let image = CIImage(cvPixelBuffer: pixels)
         let quality = CIImageRepresentationOption(rawValue: kCGImageDestinationLossyCompressionQuality as String)
         if let jpeg = context.jpegRepresentation(of: image, colorSpace: colorSpace, options: [quality: 0.6]),
-           jpeg.count < 768 * 1024 - 28 {
-            continuation.yield(jpeg)
+           jpeg.count < 768 * 1024 - 40 {
+            if timestamps, let timestamp = time.mediaMicroseconds {
+                var stamp = timestamp.bigEndian
+                var packet = Data([0x4d, 0x52, 0x4a, 1])
+                withUnsafeBytes(of: &stamp) { packet.append(contentsOf: $0) }
+                packet.append(jpeg)
+                continuation.yield(packet)
+            } else {
+                continuation.yield(jpeg)
+            }
         } else {
             requested = true
         }
@@ -135,10 +145,12 @@ final class ScreenFeed {
     let displayID: CGDirectDisplayID
     private let stream: SCStream
     private let output: FrameOutput
+    private let audioOutput = SystemAudioOutput()
     private let width: Int
     private let height: Int
 
     var frames: AsyncThrowingStream<Data, Error> { output.frames }
+    var audioPackets: AsyncStream<Data> { audioOutput.packets }
 
     init() async throws {
         let main = CGMainDisplayID()
@@ -148,27 +160,29 @@ final class ScreenFeed {
         let scale = min(1, 1440 / Double(display.width), 960 / Double(display.height))
         width = max(2, Int(Double(display.width) * scale) / 2 * 2)
         height = max(2, Int(Double(display.height) * scale) / 2 * 2)
-        let config = Self.configuration(width: width, height: height, frameRate: 12)
+        let config = Self.configuration(width: width, height: height, frameRate: 12, audio: false)
         let output = FrameOutput()
         self.output = output
         stream = SCStream(filter: SCContentFilter(display: display, excludingWindows: []), configuration: config, delegate: output)
         try stream.addStreamOutput(output, type: .screen, sampleHandlerQueue: output.queue)
+        try stream.addStreamOutput(audioOutput, type: .audio, sampleHandlerQueue: audioOutput.queue)
     }
 
     func requestFrame() { output.requestFrame() }
-    func configure(video: Bool) {
-        output.configure(video: video)
-        let config = Self.configuration(width: width, height: height, frameRate: video ? H264Encoder.frameRate : 20)
+    func configure(video: Bool, audio: Bool) {
+        output.configure(video: video, audio: audio)
+        let config = Self.configuration(width: width, height: height, frameRate: video ? H264Encoder.frameRate : 20, audio: audio)
         stream.updateConfiguration(config, completionHandler: { _ in })
     }
     func start() async throws { try await stream.startCapture() }
 
     func stop() async {
         output.finish()
+        audioOutput.finish()
         try? await stream.stopCapture()
     }
 
-    private static func configuration(width: Int, height: Int, frameRate: Int32) -> SCStreamConfiguration {
+    private static func configuration(width: Int, height: Int, frameRate: Int32, audio: Bool) -> SCStreamConfiguration {
         let config = SCStreamConfiguration()
         config.width = width
         config.height = height
@@ -176,6 +190,10 @@ final class ScreenFeed {
         config.queueDepth = 3
         config.pixelFormat = kCVPixelFormatType_32BGRA
         config.showsCursor = true
+        config.capturesAudio = audio
+        config.sampleRate = 48_000
+        config.channelCount = 2
+        config.excludesCurrentProcessAudio = true
         return config
     }
 }

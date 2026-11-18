@@ -10,8 +10,8 @@ Download the app from [GitHub Releases](https://github.com/kuatsaparali/RemoteMa
 
 | Your Mac | Download |
 | --- | --- |
-| Apple Silicon, including M1, M2, M3, M4 and later | [MacRemote for Apple Silicon](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.5.0/MacRemote-0.5.0-macOS-arm64.zip) |
-| Intel processor | [MacRemote for Intel](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.5.0/MacRemote-0.5.0-macOS-x86_64.zip) |
+| Apple Silicon, including M1, M2, M3, M4 and later | [MacRemote for Apple Silicon](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.6.0/MacRemote-0.6.0-macOS-arm64.zip) |
+| Intel processor | [MacRemote for Intel](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.6.0/MacRemote-0.6.0-macOS-x86_64.zip) |
 
 The standalone downloads require macOS 15 Sequoia or later and an internet connection, matching the bundled cloudflared binaries. Find your processor in **Apple menu → About This Mac**. Release downloads include the connection services, so you can launch the app from Finder without installing Homebrew, Node.js or Cloudflare Tunnel.
 
@@ -24,14 +24,14 @@ The standalone downloads require macOS 15 Sequoia or later and an internet conne
 
 This release uses an ad hoc signature and has not been notarized by Apple. If macOS blocks the first launch and you choose to proceed, open **System Settings → Privacy & Security → Open Anyway** after trying to open it. [Apple's first-launch instructions](https://support.apple.com/en-us/102445)
 
-The Mac app supports **Russian and English**. Use the **Русский / English** selector in the top-right corner to switch instantly. Your choice is saved for the next launch, and the initial language follows your macOS language. Buttons, setup instructions, session status and app error messages follow your selection. macOS system menus and permission dialogs use the macOS language settings. The browser viewer currently uses Russian labels; the steps below include their English meanings.
+The Mac app supports **Russian and English**. Use the **Русский / English** selector in the top-right corner to switch instantly. Your choice is saved for the next launch, and the initial language follows your macOS language. Buttons, setup instructions, session status and app error messages follow your selection. macOS system menus and permission dialogs use the macOS language settings. The viewer can choose **Русский** or **English** in the browser header. The browser remembers the choice for the same address.
 
 ## Start a session
 
 1. On the Mac you want to control, click **Создать ссылку** (Create link). The app starts its bundled relay and a temporary Cloudflare Tunnel. Creating the connection can take up to 90 seconds.
 2. Click **Скопировать ссылку** (Copy link) and send the invitation to the device you will use to connect.
 3. Open the complete invitation in a browser on that device, including everything after `#`, and click **Подключиться** (Connect).
-4. On the Mac, click **Разрешить доступ** (Allow access) to approve the request. The browser then displays the Mac's main screen.
+4. On the Mac, click **Разрешить доступ** (Allow access) to approve the request. The browser then displays the Mac's main screen and plays its system audio when supported. Use **Sound on / Sound off** in the browser to mute or unmute playback on the viewing device.
 5. Click inside the remote screen to send mouse and keyboard input. Press **Shift + Esc** to release keyboard focus back to the browser.
 6. To finish, click **Завершить сеанс** (End session) on the Mac or **Отключиться** (Disconnect) in the browser.
 
@@ -48,11 +48,11 @@ On a touchscreen, a tap sends a mouse click. Typing requires a physical keyboard
 
 ## Connection and privacy
 
-MacRemote captures the main display with ScreenCaptureKit and injects mouse and keyboard events through Core Graphics after you approve access. Screen video and input commands are encrypted with AES-GCM between the Mac and browser. The session encryption key is included in the invitation's URL fragment after `#`. Treat the full invitation as private.
+MacRemote captures the main display with ScreenCaptureKit and injects mouse and keyboard events through Core Graphics after you approve access. Screen video, system audio and input commands are encrypted with AES-GCM between the Mac and browser. The stream excludes the microphone. The session encryption key is included in the invitation's URL fragment after `#`. Treat the full invitation as private.
 
 The bundled relay listens on a randomly assigned loopback port. A temporary Cloudflare Tunnel makes that service reachable through HTTPS. The browser client is delivered through the same tunnel, and Cloudflare participates in serving that client. For startup checks, the app can fall back to Cloudflare public DNS if the local resolver cannot find the new tunnel hostname. The temporary hostname changes for each session. [Cloudflare Tunnel documentation](https://developers.cloudflare.com/tunnel/concepts/#quick-tunnels)
 
-This version supports one main display and one viewer, at a maximum capture size of 1440 × 960. Compatible browsers receive H.264 video encoded through VideoToolbox at up to 60 frames per second. The browser prefers software H.264 decoding to avoid buffering sparse desktop updates. If video decoding is unavailable or fails, the session switches to JPEG at up to 20 frames per second. New hosts and viewers use encrypted frame acknowledgments to limit the stream to four unacknowledged H.264 frames or two JPEG frames, so a slow connection does not build up an old-frame backlog. Legacy viewers continue to receive JPEG at up to 12 frames per second. The actual frame rate depends on display updates, the network round-trip time, and how quickly the browser decodes and draws frames. Audio, file transfer, clipboard synchronization and unattended access are outside the current feature set.
+This version supports one main display and one viewer, at a maximum capture size of 1440 × 960. Compatible browsers receive H.264 video encoded through VideoToolbox at up to 120 frames per second. The browser prefers software H.264 decoding to avoid buffering sparse desktop updates. If video decoding is unavailable or fails, the session switches to JPEG at up to 20 frames per second. New hosts and viewers use encrypted frame acknowledgments to limit the stream to eight unacknowledged H.264 frames or two JPEG frames, so a slow connection does not build up an old-frame backlog. Legacy viewers continue to receive JPEG at up to 12 frames per second. The actual frame rate depends on the source display, the viewing device and the connection. System audio uses a short playback buffer to keep the picture and sound in sync. If audio is available but silent, try clicking the sound button or checking the viewing device’s output volume.
 
 ## Use your own relay
 

@@ -1,1 +1,1 @@
-"NSScreenCaptureUsageDescription" = "MacRemote передаёт основной экран только во время одобренного удалённого сеанса.";
+"NSScreenCaptureUsageDescription" = "MacRemote передаёт основной экран и системный звук только во время одобренного сеанса.";

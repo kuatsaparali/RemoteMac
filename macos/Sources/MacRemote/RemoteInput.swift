@@ -12,6 +12,7 @@ struct RemoteCommand: Decodable {
     let code: String?
     let modifiers: UInt8?
     let codec: String?
+    let audio: Bool?
     let frame: UInt64?
 }
 

@@ -16,6 +16,7 @@ final class HostSession: ObservableObject {
     private var socket: URLSessionWebSocketTask?
     private var receiver: Task<Void, Never>?
     private var sender: Task<Void, Never>?
+    private var audioSender: Task<Void, Never>?
     private var captureStarter: Task<Void, Never>?
     private var timeLimit: Task<Void, Never>?
     private var cipher: SessionCipher?
@@ -196,10 +197,12 @@ final class HostSession: ObservableObject {
         socket = nil
         receiver?.cancel()
         sender?.cancel()
+        audioSender?.cancel()
         captureStarter?.cancel()
         timeLimit?.cancel()
         receiver = nil
         sender = nil
+        audioSender = nil
         captureStarter = nil
         timeLimit = nil
         closing?.cancel(with: .normalClosure, reason: nil)
@@ -230,6 +233,21 @@ final class HostSession: ObservableObject {
             } catch {
                 guard let self, self.socket === socket else { return }
                 self.stop("Показ экрана прерван. Создайте новую ссылку.")
+            }
+        }
+    }
+
+    private func startSendingAudio(_ capture: ScreenFeed, on socket: URLSessionWebSocketTask) {
+        audioSender = Task { [weak self] in
+            do {
+                for await samples in capture.audioPackets {
+                    guard let self, self.socket === socket, !Task.isCancelled,
+                          let packet = try self.cipher?.audio(samples) else { return }
+                    try await socket.send(.data(packet))
+                }
+            } catch {
+                guard let self, self.socket === socket, !Task.isCancelled else { return }
+                self.stop("Связь с сервером потеряна. Проверьте адрес и создайте новую ссылку.")
             }
         }
     }
@@ -266,7 +284,11 @@ final class HostSession: ObservableObject {
                 guard command.codec == "h264" || command.codec == "jpeg" else { return }
                 let video = command.codec == "h264"
                 framePacer.configure(video: video)
-                capture?.configure(video: video)
+                let audio = command.audio == true
+                capture?.configure(video: video, audio: audio)
+                if audio, let capture, let socket, audioSender == nil {
+                    startSendingAudio(capture, on: socket)
+                }
             case .frameAck:
                 if let sequence = command.frame { framePacer.acknowledge(sequence) }
             default:

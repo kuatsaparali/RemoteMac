@@ -6,8 +6,8 @@
 "Временное подключение создаётся через Cloudflare. Ссылка действует, пока открыт сеанс." = "A temporary connection is provided through Cloudflare. The link works while the session is open.";
 "Время на подтверждение истекло. Создайте новую ссылку." = "The access request timed out. Create a new link.";
 "Доступ открыт" = "Remote access is active";
-"Другой участник видит основной экран и может управлять мышью и клавиатурой." = "The viewer can see your main display and control your mouse and keyboard.";
-"Если вы ждёте это подключение, разрешите просмотр экрана и управление этим Mac." = "If you are expecting this connection, allow the viewer to see and control this Mac.";
+"Другой участник может видеть экран, слышать звук Mac и управлять мышью и клавиатурой." = "The viewer can see your display, hear your Mac audio and control your mouse and keyboard.";
+"Если вы ждёте это подключение, разрешите просмотр экрана, передачу звука и управление этим Mac." = "If you are expecting this connection, allow the viewer to see, hear and control this Mac.";
 "Завершить сеанс" = "End session";
 "Запись экрана" = "Screen Recording";
 "Запрос на удалённый доступ" = "Remote access request";

@@ -37,6 +37,7 @@ extension Data {
 struct SessionCipher {
     let secret: Data
     private var sent: UInt64 = 0
+    private var audioSent: UInt64 = 0
     private var received: UInt64 = 0
 
     var lastFrameSequence: UInt64 { sent }
@@ -47,8 +48,17 @@ struct SessionCipher {
 
     mutating func frame(_ payload: Data) throws -> Data {
         sent += 1
-        var sequence = sent.bigEndian
-        var nonce = Data([0, 0, 0, 1])
+        return try seal(payload, direction: 1, sequence: sent)
+    }
+
+    mutating func audio(_ payload: Data) throws -> Data {
+        audioSent += 1
+        return try seal(payload, direction: 3, sequence: audioSent)
+    }
+
+    private func seal(_ payload: Data, direction: UInt8, sequence: UInt64) throws -> Data {
+        var sequence = sequence.bigEndian
+        var nonce = Data([0, 0, 0, direction])
         Swift.withUnsafeBytes(of: &sequence) { nonce.append(contentsOf: $0) }
         let sealed = try AES.GCM.seal(payload, using: SymmetricKey(data: secret), nonce: AES.GCM.Nonce(data: nonce))
         var packet = nonce
