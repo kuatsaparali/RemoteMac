@@ -1,69 +1,91 @@
 # MacRemote
 
-Удалённый доступ к основному экрану Mac через браузер. В MacRemote вы создаёте одноразовую ссылку и подтверждаете подключение. В браузере доступны мышь, прокрутка, перетаскивание, клавиатура и полноэкранный режим.
+View and control a Mac from a web browser over the internet. MacRemote runs on the Mac you want to access. The other device opens an invitation link and requests access, which you approve on the Mac.
 
-## Запуск через интернет
+Built by [kuatsaparali](https://github.com/kuatsaparali).
 
-Архив содержит исходники, сервер и собранный MacRemote.app для Mac с Apple Silicon или Intel. Нужны macOS 13 или новее, Node.js 22 или новее и Cloudflare Quick Tunnel.
+## Download
 
-Распакуйте архив и откройте Terminal в папке `MacRemote`. Если вы распаковали его в «Загрузки», команды такие.
+Download the app from [GitHub Releases](https://github.com/kuatsaparali/RemoteMac/releases/latest).
+
+| Your Mac | Download |
+| --- | --- |
+| Apple Silicon, including M1, M2, M3, M4 and later | [MacRemote for Apple Silicon](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.2.0/MacRemote-0.2.0-macOS-arm64.zip) |
+| Intel processor | [MacRemote for Intel](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.2.0/MacRemote-0.2.0-macOS-x86_64.zip) |
+
+The standalone downloads require macOS 15 Sequoia or later and an internet connection, matching the bundled cloudflared binaries. Find your processor in **Apple menu → About This Mac**. Release downloads include the connection services, so you can launch the app from Finder without installing Homebrew, Node.js or Cloudflare Tunnel.
+
+## Open the app
+
+1. Download the ZIP for your processor and double-click it to extract **MacRemote.app**.
+2. Drag **MacRemote.app** to **Applications** and open it.
+3. Allow **Screen Recording** and **Accessibility** when prompted. Use the **Разрешить** (Allow) buttons in MacRemote to open the corresponding macOS settings.
+4. If macOS asks you to quit and reopen MacRemote after granting permission, do so. Return to the app and check that both permissions show **Включено** (Enabled).
+
+This release uses an ad hoc signature and has not been notarized by Apple. If macOS blocks the first launch and you choose to proceed, open **System Settings → Privacy & Security → Open Anyway** after trying to open it. [Apple's first-launch instructions](https://support.apple.com/en-us/102445)
+
+The current app and browser interface use Russian labels. The steps below include their English meanings.
+
+## Start a session
+
+1. On the Mac you want to control, click **Создать ссылку** (Create link). The app starts its bundled relay and a temporary Cloudflare Tunnel. Creating the connection can take up to 90 seconds.
+2. Click **Скопировать ссылку** (Copy link) and send the invitation to the device you will use to connect.
+3. Open the complete invitation in a browser on that device, including everything after `#`, and click **Подключиться** (Connect).
+4. On the Mac, click **Разрешить доступ** (Allow access) to approve the request. The browser then displays the Mac's main screen.
+5. Click inside the remote screen to send mouse and keyboard input. Press **Shift + Esc** to release keyboard focus back to the browser.
+6. To finish, click **Завершить сеанс** (End session) on the Mac or **Отключиться** (Disconnect) in the browser.
+
+Keep MacRemote open and the Mac awake and unlocked during the session. Closing the app stops its connection services. Each invitation accepts one viewer. Create a new link after a disconnection or declined request.
+
+On a touchscreen, a tap sends a mouse click. Typing requires a physical keyboard. Some keyboard shortcuts are intercepted by the browser or operating system. The remote Mac's selected keyboard layout determines the typed text.
+
+## Troubleshooting
+
+- **The connection takes too long.** Check your internet connection and try creating another link. Temporary tunnels depend on Cloudflare availability and may be restricted by your network.
+- **The viewer cannot open the invitation.** Copy the entire link with the app's Copy link button. After restarting a session, use its new invitation. If the browser reports a DNS error for the temporary hostname, try another network, such as mobile data, or retry after your network refreshes its DNS cache.
+- **Permissions show as disabled.** Check MacRemote under Screen Recording and Accessibility in System Settings, then quit and reopen it. An update may require you to remove the old permission entry and add the new app.
+- **The screen or input stops working.** Confirm that the Mac is awake and unlocked and that the permissions are enabled, then create a new session.
+
+## Connection and privacy
+
+MacRemote captures the main display with ScreenCaptureKit and injects mouse and keyboard events through Core Graphics after you approve access. Screen images and input commands are encrypted with AES-GCM between the Mac and browser. The session encryption key is included in the invitation's URL fragment after `#`. Treat the full invitation as private.
+
+The bundled relay listens on a randomly assigned loopback port. A temporary Cloudflare Tunnel makes that service reachable through HTTPS. The browser client is delivered through the same tunnel, and Cloudflare participates in serving that client. For startup checks, the app can fall back to Cloudflare public DNS if the local resolver cannot find the new tunnel hostname. The temporary hostname changes for each session. [Cloudflare Tunnel documentation](https://developers.cloudflare.com/tunnel/concepts/#quick-tunnels)
+
+This version supports one main display and one viewer, with JPEG frames capped at 1440 × 960 and up to 12 frames per second. Audio, file transfer, clipboard synchronization and unattended access are outside the current feature set.
+
+## Use your own relay
+
+Enable **Использовать свой сервер** (Use your own server) in the app to enter an HTTPS relay address and its host key. This mode uses your existing relay instead of starting the bundled services.
+
+To run the relay from source, install Node.js 22 or later and run the following commands from the repository root.
 
 ```bash
-cd ~/Downloads/MacRemote
-brew install cloudflared
-./start.sh --internet
+cd relay
+npm ci
+npm start
 ```
 
-Если Node.js ещё отсутствует, выполните `brew install node`. Если Homebrew уже установлен, этих двух пакетов достаточно.
+The relay listens on `127.0.0.1:8787` by default. Its address and a generated host key are printed at startup. For internet access, configure an HTTPS reverse proxy that forwards WebSocket upgrades for `/ws` and serves the relay at the domain root. `PORT`, `BIND_HOST` and `MACREMOTE_HOST_KEY` can be set through environment variables. Keep the host key on the host Mac and relay.
 
-1. Скрипт откроет MacRemote и покажет **адрес** и **ключ** в терминале. Вставьте их в поля приложения. Ключ сервера нужен только на Mac.
-2. В MacRemote выдайте разрешения **Запись экрана** и **Универсальный доступ**. Если macOS предложит завершить программу и открыть её заново, оставьте терминал запущенным и откройте приложение командой `open macos/dist/MacRemote.app` в новом окне Terminal из той же папки.
-3. Нажмите **Создать ссылку**, затем **Скопировать ссылку**. Откройте приглашение в браузере на другом устройстве, например на ноутбуке в другой сети, и нажмите **Подключиться**.
-4. На удалённом Mac нажмите **Разрешить доступ**. Щелчок по экрану в браузере включает клавиатуру. `Shift + Esc` возвращает фокус в браузер. На сенсорном устройстве касание работает как щелчок, а для набора нужна физическая клавиатура.
-5. Нажмите **Завершить сеанс** на Mac или **Отключиться** в браузере. Для остановки сервера и туннеля нажмите `Ctrl+C` в терминале.
+## Build from source
 
-У временного туннеля новый адрес при каждом запуске. При обрыве связи создайте новую ссылку. [Как работает Quick Tunnel](https://developers.cloudflare.com/tunnel/concepts/#quick-tunnels)
-
-## Локальная проверка и сборка
+Install Apple's Command Line Tools and use a macOS 13 or later SDK.
 
 ```bash
-./start.sh --local
-```
-
-В этом режиме адрес сервера — `http://localhost:8787`. Откройте приглашение в браузере на том же Mac. Для полноценной проверки управления удобнее второй компьютер в режиме `--internet`.
-
-После клонирования репозитория или правок исходников можно собрать приложение заново. Если инструментов сборки Apple ещё нет, выполните `xcode-select --install` и дождитесь завершения установки.
-
-```bash
+git clone https://github.com/kuatsaparali/RemoteMac.git
+cd RemoteMac
 ./macos/build.sh
-open macos/dist/MacRemote.app
 ```
 
-Ключ `--universal` собирает один бинарник для обеих архитектур. Сборка подписывается локальной подписью ad hoc. При необходимости можно задать удостоверение для подписи через `MACREMOTE_SIGN_IDENTITY`.
+This builds the native app for the current architecture in `macos/dist/MacRemote.app`. For a source-only build, use an external relay through **Use your own server**, or run `./start.sh --internet` with Node.js and cloudflared installed.
 
-Для постоянного адреса запустите `npm ci && npm start` из папки `relay` на своём сервере. Передайте серверу `MACREMOTE_HOST_KEY` в окружении и направьте HTTPS-домен на `127.0.0.1:8787` через обратный прокси с поддержкой WebSocket. Ключ можно создать командой `node -p "require('node:crypto').randomBytes(32).toString('base64url')"`. Серверу нужен корень домена, включая путь `/ws`.
-
-## Приватный репозиторий GitHub
-
-Когда захотите опубликовать исходники, выполните из папки `MacRemote`. Если `gh` уже установлен и авторизован, начинайте с `git init`.
+To build the standalone release downloads, install Python 3 and Node.js 22 or later, then run the following command on macOS.
 
 ```bash
-brew install gh
-gh auth login --hostname github.com --git-protocol https --web
-gh auth setup-git
-
-git init -b main
-git add .
-git commit -m "Initial MacRemote prototype"
-gh repo create macremote --private --source=. --remote=origin --push
-gh repo view --json visibility,url
+python3 macos/package-release.py
 ```
 
-Команда создаст новый приватный репозиторий `macremote` в вашем аккаунте. Сборка и зависимости исключены через `.gitignore`. Ключ сервера генерируется при запуске и не хранится в репозитории. [Документация GitHub CLI](https://cli.github.com/manual/gh_repo_create)
+The script builds a universal native executable, downloads pinned Node.js and cloudflared archives from their upstream sources, verifies their SHA-256 checksums and packages separate Apple Silicon and Intel apps. ZIP files and `SHA256SUMS.txt` are written to `macos/release/`. Downloaded dependencies are cached under `macos/.release-cache/`. To choose a different installed SDK, set `MACREMOTE_SDKROOT`.
 
-## Как это работает
-
-- Приложение использует SwiftUI, ScreenCaptureKit для захвата и Core Graphics для событий мыши и клавиатуры.
-- Кадры JPEG и команды идут по WebSocket через ретранслятор. Кадры ограничены 1440 × 960 и 12 кадрами в секунду. Фактический размер зависит от пропорций экрана.
-- Приложение и браузер шифруют кадры и команды AES-GCM. Ключ шифрования передаётся во фрагменте ссылки после `#`, а ретранслятор получает производное значение для проверки доступа. Разворачивайте браузерный клиент на доверенном сервере, поскольку он поставляет JavaScript.
-- Эта версия работает с одним основным экраном и одним зрителем. Требуется открытый и разблокированный Mac. Медиаклавиши и некоторые сочетания перехватывает браузер или система. Раскладку набираемого текста определяет удалённый Mac.
+Release apps contain Node.js v22.23.5, cloudflared 2026.11.0 and ws 8.23.0. Their license notices are included in each app under `Contents/Resources/Licenses`. The packaging script uses an ad hoc signature by default. A Developer ID signing identity can be supplied through `MACREMOTE_SIGN_IDENTITY`, with notarization handled separately.

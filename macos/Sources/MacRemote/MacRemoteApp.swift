@@ -25,6 +25,7 @@ struct HostView: View {
     @AppStorage("relayAddress") private var address = "http://localhost:8787"
     @State private var key = ""
     @State private var copied = false
+    @State private var ownServer = false
     @Environment(\.scenePhase) private var scenePhase
 
     private var ready: Bool { host.screenAllowed && host.inputAllowed }
@@ -65,6 +66,9 @@ struct HostView: View {
             if host.phase == .active { host.stop("Параметры экрана изменились. Создайте новую ссылку.") }
         }
         .onDisappear { host.stop() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
+            host.stop()
+        }
     }
 
     private var header: some View {
@@ -103,7 +107,13 @@ struct HostView: View {
             }
 
             VStack(alignment: .leading, spacing: 9) {
-                Text("Сервер подключения").font(.headline)
+                Text("Подключение через интернет").font(.headline)
+                Text("Создайте ссылку и откройте её на другом устройстве. Запрос доступа нужно подтвердить на этом Mac.")
+                    .font(.callout).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Toggle("Использовать свой сервер", isOn: $ownServer)
+                    .font(.callout)
+                if ownServer {
                 Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
                     GridRow {
                         Text("Адрес").foregroundStyle(.secondary)
@@ -117,14 +127,22 @@ struct HostView: View {
                     }
                 }
                 .controlSize(.large)
+                } else {
+                    Text("Временное подключение создаётся через Cloudflare. Ссылка действует, пока открыт сеанс.")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             HStack {
                 Spacer()
-                Button("Создать ссылку") { host.start(address: address, hostKey: key) }
+                Button("Создать ссылку") {
+                    if ownServer { host.start(address: address, hostKey: key) }
+                    else { host.startInternet() }
+                }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                     .keyboardShortcut(.defaultAction)
-                    .disabled(!ready || key.isEmpty)
+                    .disabled(!ready || (ownServer && key.isEmpty))
             }
             .padding(.top, 3)
         }
@@ -204,6 +222,8 @@ struct HostView: View {
 
     private var sessionStatus: (icon: String, title: String, detail: String) {
         switch host.phase {
+        case .preparing:
+            return ("network", "Создаём интернет-подключение", "Это может занять до 90 секунд. После подключения появится ссылка-приглашение.")
         case .idle, .connecting:
             return ("network", "Подключение к серверу", "Ссылка появится после подключения.")
         case .sharingLink:

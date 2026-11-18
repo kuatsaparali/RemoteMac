@@ -2,3 +2,5 @@
 macos/.build/
 macos/dist/
 relay/node_modules/
+macos/.release-cache/
+macos/release/

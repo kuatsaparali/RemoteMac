@@ -4,7 +4,7 @@ import Foundation
 
 @MainActor
 final class HostSession: ObservableObject {
-    enum Phase { case idle, connecting, sharingLink, request, starting, active }
+    enum Phase { case idle, preparing, connecting, sharingLink, request, starting, active }
 
     @Published private(set) var phase = Phase.idle
     @Published private(set) var screenAllowed = false
@@ -21,6 +21,37 @@ final class HostSession: ObservableObject {
     private var cipher: SessionCipher?
     private var capture: ScreenFeed?
     private var input: RemoteInput?
+    private let runtime = DesktopRuntime()
+    private var runtimeStarter: Task<Void, Never>?
+
+    init() {
+        runtime.onFailure = { [weak self] message in self?.stop(message) }
+    }
+
+    func startInternet() {
+        guard phase == .idle else { return }
+        refreshPermissions()
+        guard screenAllowed, inputAllowed else {
+            notice = SessionError.permissions.localizedDescription
+            return
+        }
+        notice = nil
+        phase = .preparing
+        runtimeStarter = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let endpoint = try await self.runtime.start()
+                try Task.checkCancellation()
+                guard self.phase == .preparing else { return }
+                self.phase = .idle
+                self.start(address: endpoint.localAddress, hostKey: endpoint.hostKey, invitationAddress: endpoint.address)
+            } catch is CancellationError {
+                // The user or application already stopped this attempt.
+            } catch {
+                self.stop(error.localizedDescription)
+            }
+        }
+    }
 
     func refreshPermissions() {
         screenAllowed = CGPreflightScreenCaptureAccess()
@@ -48,7 +79,7 @@ final class HostSession: ObservableObject {
         }
     }
 
-    func start(address: String, hostKey: String) {
+    func start(address: String, hostKey: String, invitationAddress: String? = nil) {
         guard phase == .idle else { return }
         do {
             refreshPermissions()
@@ -58,12 +89,12 @@ final class HostSession: ObservableObject {
                 throw SessionError.invalidKey
             }
 
-            var addressParts = try Self.addressParts(address)
+            var addressParts = try Self.addressParts(invitationAddress ?? address)
             let room = try Data.secureRandom(count: 16).base64url
             let cipher = try SessionCipher()
             addressParts.fragment = room + "." + cipher.secret.base64url
             guard let link = addressParts.url else { throw SessionError.invalidAddress }
-            addressParts.fragment = nil
+            addressParts = try Self.addressParts(address)
             addressParts.path = "/ws"
             addressParts.scheme = addressParts.scheme == "https" ? "wss" : "ws"
             guard let endpoint = addressParts.url else { throw SessionError.invalidAddress }
@@ -98,6 +129,7 @@ final class HostSession: ObservableObject {
                 self.stop("Сервер не ответил. Проверьте адрес и повторите.")
             }
         } catch {
+            runtime.stop()
             notice = error.localizedDescription
         }
     }
@@ -150,6 +182,9 @@ final class HostSession: ObservableObject {
     }
 
     func stop(_ reason: String? = nil) {
+        runtimeStarter?.cancel()
+        runtimeStarter = nil
+        runtime.stop()
         guard phase != .idle else { return }
         let feed = capture
         capture = nil

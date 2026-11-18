@@ -1,0 +1,3 @@
+# An app-local config keeps Quick Tunnels independent of user tunnel settings.
+protocol: http2
+no-autoupdate: true

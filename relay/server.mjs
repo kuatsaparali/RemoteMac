@@ -21,7 +21,7 @@ if (!tokenPattern.test(hostKey)) {
   throw new Error('MACREMOTE_HOST_KEY must be a 32-byte base64url key without padding');
 }
 
-const server = createServer((request, response) => {
+export const server = createServer((request, response) => {
   const asset = assets.get(request.url?.split('?')[0]);
   response.setHeader('Cache-Control', 'no-store');
   response.setHeader('Referrer-Policy', 'no-referrer');
