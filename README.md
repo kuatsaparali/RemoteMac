@@ -10,8 +10,8 @@ Download the app from [GitHub Releases](https://github.com/kuatsaparali/RemoteMa
 
 | Your Mac | Download |
 | --- | --- |
-| Apple Silicon, including M1, M2, M3, M4 and later | [MacRemote for Apple Silicon](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.6.0/MacRemote-0.6.0-macOS-arm64.zip) |
-| Intel processor | [MacRemote for Intel](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.6.0/MacRemote-0.6.0-macOS-x86_64.zip) |
+| Apple Silicon, including M1, M2, M3, M4 and later | [MacRemote for Apple Silicon](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.6.1/MacRemote-0.6.1-macOS-arm64.zip) |
+| Intel processor | [MacRemote for Intel](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.6.1/MacRemote-0.6.1-macOS-x86_64.zip) |
 
 The standalone downloads require macOS 15 Sequoia or later and an internet connection, matching the bundled cloudflared binaries. Find your processor in **Apple menu → About This Mac**. Release downloads include the connection services, so you can launch the app from Finder without installing Homebrew, Node.js or Cloudflare Tunnel.
 
@@ -52,7 +52,7 @@ MacRemote captures the main display with ScreenCaptureKit and injects mouse and 
 
 The bundled relay listens on a randomly assigned loopback port. A temporary Cloudflare Tunnel makes that service reachable through HTTPS. The browser client is delivered through the same tunnel, and Cloudflare participates in serving that client. For startup checks, the app can fall back to Cloudflare public DNS if the local resolver cannot find the new tunnel hostname. The temporary hostname changes for each session. [Cloudflare Tunnel documentation](https://developers.cloudflare.com/tunnel/concepts/#quick-tunnels)
 
-This version supports one main display and one viewer, at a maximum capture size of 1440 × 960. Compatible browsers receive H.264 video encoded through VideoToolbox at up to 120 frames per second. The browser prefers software H.264 decoding to avoid buffering sparse desktop updates. If video decoding is unavailable or fails, the session switches to JPEG at up to 20 frames per second. New hosts and viewers use encrypted frame acknowledgments to limit the stream to eight unacknowledged H.264 frames or two JPEG frames, so a slow connection does not build up an old-frame backlog. Legacy viewers continue to receive JPEG at up to 12 frames per second. The actual frame rate depends on the source display, the viewing device and the connection. System audio uses a short playback buffer to keep the picture and sound in sync. If audio is available but silent, try clicking the sound button or checking the viewing device’s output volume.
+This version supports one main display and one viewer, at a maximum capture size of 1440 × 960. Compatible browsers receive H.264 video encoded through VideoToolbox at up to 120 frames per second. On phones and tablets with touch-first browsers, capture is capped at 1024 × 720 and 60 fps with a lower target bitrate. These browsers can use the platform H.264 decoder. Desktop viewers prefer software decoding to avoid buffering sparse screen updates. If video decoding is unavailable or fails, the session switches to JPEG at up to 20 frames per second. New hosts and viewers use encrypted frame acknowledgments to limit the stream to eight unacknowledged H.264 frames or two JPEG frames, so a slow connection does not build up an old-frame backlog. Legacy viewers continue to receive JPEG at up to 12 frames per second. The actual frame rate depends on the source display, the viewing device and the connection. System audio uses a short playback buffer to keep the picture and sound in sync. On supported iPhone browsers, MacRemote requests media playback so the audio can play in Silent Mode. If the stream is still silent, check the media output volume and try opening the invitation directly in Safari.
 
 ## Use your own relay
 

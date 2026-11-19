@@ -11,6 +11,8 @@ private final class FrameOutput: NSObject, SCStreamOutput, SCStreamDelegate {
     private let continuation: AsyncThrowingStream<Data, Error>.Continuation
     private let context = CIContext(options: [.cacheIntermediates: false])
     private let colorSpace = CGColorSpace(name: CGColorSpace.sRGB)!
+    let videoRate: Int32
+    private let videoBitRate: Int
     private var latest: (pixels: CVPixelBuffer, time: CMTime)?
     private var lastTime = -Double.infinity
     private var requested = false
@@ -22,7 +24,9 @@ private final class FrameOutput: NSObject, SCStreamOutput, SCStreamDelegate {
     private var interval = 1.0 / 12
     private var encoder: H264Encoder?
 
-    override init() {
+    init(mobile: Bool) {
+        self.videoRate = mobile ? 60 : H264Encoder.frameRate
+        self.videoBitRate = mobile ? 2_500_000 : 5_000_000
         var continuation: AsyncThrowingStream<Data, Error>.Continuation!
         frames = AsyncThrowingStream(bufferingPolicy: .bufferingNewest(1)) { continuation = $0 }
         self.continuation = continuation
@@ -40,7 +44,7 @@ private final class FrameOutput: NSObject, SCStreamOutput, SCStreamDelegate {
         queue.async {
             self.wantsVideo = video
             self.timestamps = audio
-            self.interval = video ? 1.0 / Double(H264Encoder.frameRate) : 1.0 / 20
+            self.interval = video ? 1.0 / Double(self.videoRate) : 1.0 / 20
             self.restartEncoder = true
             self.encodeLatest()
         }
@@ -70,7 +74,8 @@ private final class FrameOutput: NSObject, SCStreamOutput, SCStreamDelegate {
         requested = false
         lastTime = frame.time.seconds
         if wantsVideo && encoder == nil {
-            encoder = try? H264Encoder(width: CVPixelBufferGetWidth(frame.pixels), height: CVPixelBufferGetHeight(frame.pixels))
+            encoder = try? H264Encoder(width: CVPixelBufferGetWidth(frame.pixels), height: CVPixelBufferGetHeight(frame.pixels),
+                                        frameRate: videoRate, bitRate: videoBitRate)
             if encoder == nil {
                 wantsVideo = false
                 interval = 1.0 / 20
@@ -152,16 +157,18 @@ final class ScreenFeed {
     var frames: AsyncThrowingStream<Data, Error> { output.frames }
     var audioPackets: AsyncStream<Data> { audioOutput.packets }
 
-    init() async throws {
+    init(mobile: Bool) async throws {
         let main = CGMainDisplayID()
         let available = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         guard let display = available.displays.first(where: { $0.displayID == main }) else { throw SessionError.noDisplay }
         displayID = main
-        let scale = min(1, 1440 / Double(display.width), 960 / Double(display.height))
+        let maxWidth: Double = mobile ? 1024 : 1440
+        let maxHeight: Double = mobile ? 720 : 960
+        let scale = min(1, maxWidth / Double(display.width), maxHeight / Double(display.height))
         width = max(2, Int(Double(display.width) * scale) / 2 * 2)
         height = max(2, Int(Double(display.height) * scale) / 2 * 2)
         let config = Self.configuration(width: width, height: height, frameRate: 12, audio: false)
-        let output = FrameOutput()
+        let output = FrameOutput(mobile: mobile)
         self.output = output
         stream = SCStream(filter: SCContentFilter(display: display, excludingWindows: []), configuration: config, delegate: output)
         try stream.addStreamOutput(output, type: .screen, sampleHandlerQueue: output.queue)
@@ -171,7 +178,7 @@ final class ScreenFeed {
     func requestFrame() { output.requestFrame() }
     func configure(video: Bool, audio: Bool) {
         output.configure(video: video, audio: audio)
-        let config = Self.configuration(width: width, height: height, frameRate: video ? H264Encoder.frameRate : 20, audio: audio)
+        let config = Self.configuration(width: width, height: height, frameRate: video ? output.videoRate : 20, audio: audio)
         stream.updateConfiguration(config, completionHandler: { _ in })
     }
     func start() async throws { try await stream.startCapture() }

@@ -47,8 +47,8 @@ server.on('upgrade', (request, socket, head) => {
   sockets.handleUpgrade(request, socket, head, connection => sockets.emit('connection', connection));
 });
 
-function send(socket, type) {
-  if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type }));
+function send(socket, type, fields) {
+  if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type, ...fields }));
 }
 
 function matches(expected, actual) {
@@ -148,7 +148,7 @@ sockets.on('connection', socket => {
       room.paced = room.supportsPacing && message.paced === true;
       room.approvalTimeout = setTimeout(() => endRoom(room, 'expired'), 60_000);
       send(socket, 'waiting');
-      send(room.host, 'request');
+      send(room.host, 'request', message.mobile === true ? { mobile: '1' } : undefined);
       return;
     }
     send(socket, 'denied');

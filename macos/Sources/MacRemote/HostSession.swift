@@ -21,6 +21,7 @@ final class HostSession: ObservableObject {
     private var timeLimit: Task<Void, Never>?
     private var cipher: SessionCipher?
     private var capture: ScreenFeed?
+    private var mobileViewer = false
     private var input: RemoteInput?
     private let runtime = DesktopRuntime()
     private var runtimeStarter: Task<Void, Never>?
@@ -148,7 +149,7 @@ final class HostSession: ObservableObject {
             guard let self else { return }
             var pending: ScreenFeed?
             do {
-                let capture = try await ScreenFeed()
+                let capture = try await ScreenFeed(mobile: self.mobileViewer)
                 pending = capture
                 try Task.checkCancellation()
                 try await capture.start()
@@ -264,6 +265,7 @@ final class HostSession: ObservableObject {
                 timeLimit = nil
             case "request" where phase == .sharingLink:
                 invitation = nil
+                mobileViewer = message["mobile"] == "1"
                 phase = .request
                 NSApp.requestUserAttention(.informationalRequest)
             case "denied":

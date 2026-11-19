@@ -11,7 +11,7 @@ final class H264Encoder {
     private let width: Int
     private let height: Int
 
-    init(width: Int, height: Int) throws {
+    init(width: Int, height: Int, frameRate: Int32 = H264Encoder.frameRate, bitRate: Int = 5_000_000) throws {
         self.width = width
         self.height = height
         let specification = [kVTVideoEncoderSpecification_EnableHardwareAcceleratedVideoEncoder: true] as CFDictionary
@@ -26,9 +26,9 @@ final class H264Encoder {
                 (kVTCompressionPropertyKey_RealTime, kCFBooleanTrue),
                 (kVTCompressionPropertyKey_AllowFrameReordering, kCFBooleanFalse),
                 (kVTCompressionPropertyKey_ProfileLevel, kVTProfileLevel_H264_Baseline_AutoLevel),
-                (kVTCompressionPropertyKey_ExpectedFrameRate, Int(Self.frameRate) as CFNumber),
-                (kVTCompressionPropertyKey_AverageBitRate, 5_000_000 as CFNumber),
-                (kVTCompressionPropertyKey_MaxKeyFrameInterval, Int(Self.frameRate * 2) as CFNumber),
+                (kVTCompressionPropertyKey_ExpectedFrameRate, Int(frameRate) as CFNumber),
+                (kVTCompressionPropertyKey_AverageBitRate, bitRate as CFNumber),
+                (kVTCompressionPropertyKey_MaxKeyFrameInterval, Int(frameRate * 2) as CFNumber),
                 (kVTCompressionPropertyKey_MaxKeyFrameIntervalDuration, 2 as CFNumber),
             ]
             for (key, value) in settings {
@@ -105,10 +105,10 @@ final class H264Encoder {
         withUnsafeBytes(of: &time) { packet.append(contentsOf: $0) }
         let startCode = Data([0, 0, 0, 1])
         if keyframe {
-            for parameter in parameterSets {
-                packet.append(startCode)
-                packet.append(parameter)
-            }
+            packet.append(startCode)
+            packet.append(H264SequenceParameters.signalNoReordering(sps))
+            packet.append(startCode)
+            packet.append(parameterSets[1])
         }
         var avcc = Data(count: CMBlockBufferGetDataLength(block))
         guard !avcc.isEmpty else { return nil }

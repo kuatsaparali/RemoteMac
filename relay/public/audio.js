@@ -9,12 +9,14 @@ class SessionAudio {
     this.sources = new Set();
     this.anchor = null;
     this.audioEnd = 0;
+    this.bufferLead = 0.10;
     this.decodeQueue = [];
     this.busy = false;
     this.sequence = 0n;
   }
 
   async toggle() {
+    if (this.muted || this.context.state !== 'running') setPlaybackType('playback');
     if (this.context.state !== 'running') {
       try { await this.context.resume(); } catch { return; }
       this.muted = false;
@@ -40,7 +42,8 @@ class SessionAudio {
       // Discard late audio while earlier samples are still playing. After an
       // underrun, restart from the freshest audio and build a short buffer.
       if (this.audioEnd > now + 0.01) return false;
-      start = now + 0.14;
+      if (this.anchor) this.bufferLead = Math.min(0.18, this.bufferLead + 0.02);
+      start = now + this.bufferLead;
       this.anchor = { timestamp, start };
     }
     if (start > now + 0.4) return false;
@@ -83,13 +86,22 @@ class SessionAudio {
     for (const source of this.sources) source.stop();
     this.sources.clear();
     this.context.close().catch(() => {});
+    setPlaybackType('auto');
   }
+}
+
+function setPlaybackType(type) {
+  try {
+    // WebKit can treat Web Audio as ambient audio, which follows the iPhone's silent switch.
+    if (navigator.audioSession) navigator.audioSession.type = type;
+  } catch {}
 }
 
 function openSessionAudio() {
   if (typeof AudioContext === 'undefined') return null;
   try {
     const context = new AudioContext({ latencyHint: 'interactive' });
+    setPlaybackType('playback');
     context.resume().catch(() => {});
     return new SessionAudio(context);
   } catch {

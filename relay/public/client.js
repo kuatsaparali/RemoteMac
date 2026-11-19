@@ -78,7 +78,9 @@ function base64url(bytes) {
 }
 
 async function start(match) {
-  const session = { commands: Promise.resolve(), queued: 0, sent: 0n, received: 0n, packets: [], displayQueue: [], audio: openSessionAudio() };
+  const mobile = /iPhone|iPad|Android/.test(navigator.userAgent) ||
+    (navigator.maxTouchPoints > 0 && matchMedia('(pointer: coarse)').matches);
+  const session = { commands: Promise.resolve(), queued: 0, sent: 0n, received: 0n, packets: [], displayQueue: [], audio: openSessionAudio(), mobile };
   current = session;
   invite.value = '';
   initialLink = undefined;
@@ -99,7 +101,9 @@ async function start(match) {
     const socket = new WebSocket(new URL('/ws', location.origin.replace(/^http/, 'ws')));
     socket.binaryType = 'arraybuffer';
     session.socket = socket;
-    socket.addEventListener('open', () => socket.send(JSON.stringify({ type: 'join', room: match[1], ticket, paced: true })));
+    socket.addEventListener('open', () => socket.send(JSON.stringify({
+      type: 'join', room: match[1], ticket, paced: true, mobile: session.mobile,
+    })));
     socket.addEventListener('message', event => {
       if (current !== session) return;
       if (typeof event.data !== 'string') {
@@ -224,10 +228,11 @@ function drawAndRelease(session, frame) {
 function renderScheduled(session) {
   session.displayHandle = undefined;
   const audio = session.audio;
+  const now = audio.context.state === 'running' ? audio.playoutTime() : Infinity;
   let next;
   while (session.displayQueue.length) {
     const frame = session.displayQueue[0];
-    if (audio.context.state === 'running' && audio.timeFor(frame.timestamp) > audio.playoutTime()) break;
+    if (audio.timeFor(frame.timestamp) > now) break;
     session.displayQueue.shift();
     next?.source.close();
     next = frame;
@@ -327,14 +332,15 @@ function decodeVideo(session, bytes, sequence, skipped) {
       },
       error() { fallbackToImages(session); },
     });
-    // Avoid hardware decoder buffering when desktop updates are sparse.
-    session.decoder.configure({ codec, codedWidth: width, codedHeight: height, optimizeForLatency: true, hardwareAcceleration: 'prefer-software' });
+    // Keep desktop decoding compatible with older senders. Mobile streams can use their platform decoder.
+    session.decoder.configure({ codec, codedWidth: width, codedHeight: height,
+      optimizeForLatency: true, hardwareAcceleration: session.mobile ? 'no-preference' : 'prefer-software' });
   }
   if (session.decoder.decodeQueueSize >= 8) { fallbackToImages(session); return; }
   session.videoFrames.set(timestamp, sequence);
   clearTimeout(session.videoTimer);
   session.videoTimer = setTimeout(() => fallbackToImages(session), 1000);
-  session.decoder.decode(new EncodedVideoChunk({ type: keyframe ? 'key' : 'delta', timestamp, data: bytes.slice(20) }));
+  session.decoder.decode(new EncodedVideoChunk({ type: keyframe ? 'key' : 'delta', timestamp, data: new Uint8Array(bytes, 20) }));
 }
 
 async function postFrame(session, packet) {
