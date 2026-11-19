@@ -10,8 +10,8 @@ Download the app from [GitHub Releases](https://github.com/kuatsaparali/RemoteMa
 
 | Your Mac | Download |
 | --- | --- |
-| Apple Silicon, including M1, M2, M3, M4 and later | [MacRemote for Apple Silicon](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.7.0/MacRemote-0.7.0-macOS-arm64.zip) |
-| Intel processor | [MacRemote for Intel](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.7.0/MacRemote-0.7.0-macOS-x86_64.zip) |
+| Apple Silicon, including M1, M2, M3, M4 and later | [MacRemote for Apple Silicon](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.7.1/MacRemote-0.7.1-macOS-arm64.zip) |
+| Intel processor | [MacRemote for Intel](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.7.1/MacRemote-0.7.1-macOS-x86_64.zip) |
 
 The standalone downloads require macOS 15 Sequoia or later and an internet connection, matching the bundled cloudflared binaries. Find your processor in **Apple menu → About This Mac**. Release downloads include the connection services, so you can launch the app from Finder without installing Homebrew, Node.js or Cloudflare Tunnel.
 
@@ -38,7 +38,7 @@ The Mac app supports **Russian and English**. Use the **Русский / English
 
 Keep MacRemote open and the Mac awake and unlocked during the session. Closing the app stops its connection services. Each invitation accepts one viewer. Create a new link after a disconnection or declined request.
 
-The browser chat opens beside the screen on desktop and below it on phones. Hiding chat leaves the session running. The last 60 messages are kept in memory until the session ends.
+The browser chat opens beside the screen on desktop. On phones, it floats over the video and keeps the picture at its current size. It collapses after 10 seconds of inactivity while the composer is unfocused. Tap **Watch** and turn the phone sideways for a larger picture. Sound and chat stay accessible in Watch mode. Tap **Done** to return to the session controls. The last 60 messages are kept in memory until the session ends.
 
 On a touchscreen, a tap sends a mouse click. Typing requires a physical keyboard. Some keyboard shortcuts are intercepted by the browser or operating system. The remote Mac's selected keyboard layout determines the typed text.
 

@@ -52,7 +52,10 @@ function reset(session, message) {
   byId('tools').hidden = true;
   byId('workspace').hidden = true;
   byId('landing').hidden = false;
-  shell.classList.remove('is-active');
+  shell.classList.remove('is-active', 'is-mobile', 'is-watching');
+  fullscreen.hidden = !document.fullscreenEnabled;
+  setText(fullscreen, 'На весь экран');
+  fullscreen.setAttribute('aria-pressed', 'false');
   field.hidden = false;
   invite.required = true;
   setText(heading, 'Подключение к Mac');
@@ -207,6 +210,11 @@ function drawFrame(session, source, width, height) {
     clearTimeout(session.timer);
     session.visible = true;
     shell.classList.add('is-active');
+    if (session.mobile) {
+      shell.classList.add('is-mobile');
+      fullscreen.hidden = false;
+      setText(fullscreen, 'Просмотр');
+    }
     byId('landing').hidden = true;
     byId('tools').hidden = false;
     byId('workspace').hidden = false;
@@ -394,14 +402,18 @@ function fit() {
   const h = viewport.clientHeight - parseFloat(padding.paddingTop) - parseFloat(padding.paddingBottom);
   const scale = Math.min(w / canvas.width, h / canvas.height);
   const width = Math.max(1, Math.floor(canvas.width * scale));
-  const height = Math.max(1, Math.floor(canvas.height * scale));
   if (canvas.style.width !== width + 'px') canvas.style.width = width + 'px';
-  if (canvas.style.height !== height + 'px') canvas.style.height = height + 'px';
 }
 
 new ResizeObserver(fit).observe(viewport);
 byId('disconnect').addEventListener('click', () => reset(current, 'Вы отключились.'));
 fullscreen.addEventListener('click', async () => {
+  if (current?.mobile) {
+    const watching = shell.classList.toggle('is-watching');
+    setText(fullscreen, watching ? 'Готово' : 'Просмотр');
+    fullscreen.setAttribute('aria-pressed', String(watching));
+    return;
+  }
   try {
     if (document.fullscreenElement) await document.exitFullscreen();
     else await shell.requestFullscreen();
@@ -410,6 +422,7 @@ fullscreen.addEventListener('click', async () => {
   }
 });
 document.addEventListener('fullscreenchange', () => {
+  if (current?.mobile) return;
   const expanded = Boolean(document.fullscreenElement);
   setText(fullscreen, expanded ? 'Выйти из полного экрана' : 'На весь экран');
   fullscreen.setAttribute('aria-pressed', String(expanded));

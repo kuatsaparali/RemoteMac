@@ -4,6 +4,7 @@ class ViewerChat {
   constructor(send) {
     this.send = send;
     this.workspace = document.getElementById('workspace');
+    this.viewport = document.getElementById('viewport');
     this.panel = document.getElementById('chat-panel');
     this.toggle = document.getElementById('chat-toggle');
     this.count = document.getElementById('chat-count');
@@ -15,14 +16,26 @@ class ViewerChat {
     this.submit = document.getElementById('chat-send');
     this.toggle.addEventListener('click', () => this.setOpen(this.panel.hidden));
     this.close.addEventListener('click', () => this.setOpen(false));
+    this.panel.addEventListener('pointerdown', () => this.scheduleCollapse());
+    this.feed.addEventListener('scroll', () => this.scheduleCollapse(), { passive: true });
     this.panel.addEventListener('keydown', event => {
       if (event.key === 'Escape' && !event.isComposing) this.setOpen(false);
+      else this.scheduleCollapse();
     });
     document.getElementById('chat-form').addEventListener('submit', event => {
       event.preventDefault();
       this.post();
     });
     this.input.addEventListener('input', () => this.updateComposer());
+    for (const event of ['focus', 'blur']) {
+      this.input.addEventListener(event, () => {
+        this.updateKeyboardInset();
+        this.scheduleCollapse();
+      });
+    }
+    for (const event of ['resize', 'scroll']) {
+      window.visualViewport?.addEventListener(event, () => this.updateKeyboardInset());
+    }
     this.input.addEventListener('keydown', event => {
       if (event.key !== 'Enter' || event.shiftKey || event.isComposing || event.keyCode === 229) return;
       event.preventDefault();
@@ -69,6 +82,25 @@ class ViewerChat {
     } else if (moveFocus) {
       this.toggle.focus();
     }
+    this.updateKeyboardInset();
+    this.scheduleCollapse();
+  }
+
+  scheduleCollapse() {
+    clearTimeout(this.collapseTimer);
+    if (!this.session?.mobile || this.panel.hidden || document.activeElement === this.input) return;
+    this.collapseTimer = setTimeout(() => {
+      this.setOpen(false, this.panel.contains(document.activeElement));
+    }, 10_000);
+  }
+
+  updateKeyboardInset() {
+    const visible = window.visualViewport;
+    const composing = this.session?.mobile && !this.panel.hidden && document.activeElement === this.input;
+    const inset = composing && visible?.scale === 1
+      ? Math.max(0, this.viewport.getBoundingClientRect().bottom - visible.offsetTop - visible.height)
+      : 0;
+    this.panel.style.setProperty('--keyboard-inset', Math.round(inset) + 'px');
   }
 
   setUnread(count) {
@@ -142,5 +174,6 @@ class ViewerChat {
     this.empty.hidden = true;
     if (this.panel.hidden && message.fromHost) this.setUnread(this.unread + 1);
     if (atBottom || !message.fromHost) this.feed.scrollTop = this.feed.scrollHeight;
+    this.scheduleCollapse();
   }
 }
