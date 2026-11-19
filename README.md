@@ -10,8 +10,8 @@ Download the app from [GitHub Releases](https://github.com/kuatsaparali/RemoteMa
 
 | Your Mac | Download |
 | --- | --- |
-| Apple Silicon, including M1, M2, M3, M4 and later | [MacRemote for Apple Silicon](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.7.1/MacRemote-0.7.1-macOS-arm64.zip) |
-| Intel processor | [MacRemote for Intel](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.7.1/MacRemote-0.7.1-macOS-x86_64.zip) |
+| Apple Silicon, including M1, M2, M3, M4 and later | [MacRemote for Apple Silicon](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.7.2/MacRemote-0.7.2-macOS-arm64.zip) |
+| Intel processor | [MacRemote for Intel](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.7.2/MacRemote-0.7.2-macOS-x86_64.zip) |
 
 The standalone downloads require macOS 15 Sequoia or later and an internet connection, matching the bundled cloudflared binaries. Find your processor in **Apple menu → About This Mac**. Release downloads include the connection services, so you can launch the app from Finder without installing Homebrew, Node.js or Cloudflare Tunnel.
 
@@ -38,7 +38,7 @@ The Mac app supports **Russian and English**. Use the **Русский / English
 
 Keep MacRemote open and the Mac awake and unlocked during the session. Closing the app stops its connection services. Each invitation accepts one viewer. Create a new link after a disconnection or declined request.
 
-The browser chat opens beside the screen on desktop. On phones, it floats over the video and keeps the picture at its current size. It collapses after 10 seconds of inactivity while the composer is unfocused. Tap **Watch** and turn the phone sideways for a larger picture. Sound and chat stay accessible in Watch mode. Tap **Done** to return to the session controls. The last 60 messages are kept in memory until the session ends.
+Chat floats over the video in the browser and opens in a popover on the Mac. Both collapse after 10 seconds of inactivity and stay open while you type. On a phone, tap **Watch** and turn the phone sideways for a larger picture. On a computer, click **Full screen**. Sound and chat remain accessible in these views. The last 60 messages are kept in memory until the session ends.
 
 On a touchscreen, a tap sends a mouse click. Typing requires a physical keyboard. Some keyboard shortcuts are intercepted by the browser or operating system. The remote Mac's selected keyboard layout determines the typed text.
 
@@ -51,7 +51,7 @@ On a touchscreen, a tap sends a mouse click. Typing requires a physical keyboard
 
 ## Connection and privacy
 
-MacRemote captures the main display with ScreenCaptureKit and injects mouse and keyboard events through Core Graphics after you approve access. Screen video, system audio, chat messages and input commands are encrypted with AES-GCM between the Mac and browser. The stream excludes the microphone. The session encryption key is included in the invitation's URL fragment after `#`. Treat the full invitation as private.
+MacRemote captures the main display with ScreenCaptureKit, excludes its own windows from the stream and injects mouse and keyboard events through Core Graphics after you approve access. Screen video, system audio, chat messages and input commands are encrypted with AES-GCM between the Mac and browser. The stream excludes the microphone. The session encryption key is included in the invitation's URL fragment after `#`. Treat the full invitation as private.
 
 The bundled relay listens on a randomly assigned loopback port. A temporary Cloudflare Tunnel makes that service reachable through HTTPS. The browser client is delivered through the same tunnel, and Cloudflare participates in serving that client. For startup checks, the app can fall back to Cloudflare public DNS if the local resolver cannot find the new tunnel hostname. The temporary hostname changes for each session. [Cloudflare Tunnel documentation](https://developers.cloudflare.com/tunnel/concepts/#quick-tunnels)
 

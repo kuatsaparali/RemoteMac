@@ -27,6 +27,9 @@ struct HostView: View {
     @State private var key = ""
     @State private var copied = false
     @State private var ownServer = false
+    @State private var chatOpen = false
+    @State private var chatDraft = ""
+    @State private var chatReadCount = 0
     @Environment(\.scenePhase) private var scenePhase
 
     private var ready: Bool { host.screenAllowed && host.inputAllowed }
@@ -57,7 +60,23 @@ struct HostView: View {
         .onChange(of: scenePhase) { phase in
             if phase == .active { host.refreshPermissions() }
         }
-        .onChange(of: host.phase) { _ in copied = false }
+        .onChange(of: host.phase) { phase in
+            copied = false
+            if phase != .active {
+                chatOpen = false
+                chatDraft = ""
+                chatReadCount = 0
+            }
+        }
+        .onChange(of: chatOpen) { open in
+            if open { chatReadCount = host.chatReceivedCount }
+        }
+        .onChange(of: host.chatReceivedCount) { count in
+            if chatOpen { chatReadCount = count }
+        }
+        .onChange(of: host.chatEnabled) { enabled in
+            if !enabled { chatOpen = false }
+        }
         .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.sessionDidResignActiveNotification)) { _ in
             host.stop("Сеанс закрыт после блокировки или смены пользователя.")
         }
@@ -206,11 +225,8 @@ struct HostView: View {
             .padding(15)
             .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 10))
 
-            if host.phase == .active && host.chatAvailable {
-                HostChatView(host: host)
-            }
-
             HStack {
+                if host.phase == .active && host.chatAvailable { chatControls }
                 Spacer()
                 if host.phase == .request {
                     Button(L10n.text("Отклонить")) { host.reject() }
@@ -235,6 +251,34 @@ struct HostView: View {
                 }
             }
             .controlSize(.large)
+        }
+    }
+
+    private var chatControls: some View {
+        HStack(spacing: 10) {
+            Button { chatOpen.toggle() } label: {
+                HStack(spacing: 5) {
+                    Label(L10n.text("Чат"), systemImage: "bubble.left.and.bubble.right")
+                    if host.chatEnabled && host.chatReceivedCount > chatReadCount {
+                        Text(min(60, host.chatReceivedCount - chatReadCount).formatted())
+                            .font(.caption.monospacedDigit().weight(.semibold))
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .foregroundStyle(Color.accentColor)
+                            .background(Color.accentColor.opacity(0.13), in: Capsule())
+                    }
+                }
+            }
+            .disabled(!host.chatEnabled)
+            .popover(isPresented: $chatOpen, arrowEdge: .bottom) {
+                HostChatView(host: host, draft: $chatDraft) { chatOpen = false }
+                    .environment(\.locale, Locale(identifier: language))
+            }
+            Toggle(L10n.text("Чат в сеансе"), isOn: Binding(get: { host.chatEnabled }, set: { host.setChatEnabled($0) }))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .help(L10n.text("Чат в сеансе"))
         }
     }
 

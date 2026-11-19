@@ -170,7 +170,10 @@ final class ScreenFeed {
         let config = Self.configuration(width: width, height: height, frameRate: 12, audio: false)
         let output = FrameOutput(mobile: mobile)
         self.output = output
-        stream = SCStream(filter: SCContentFilter(display: display, excludingWindows: []), configuration: config, delegate: output)
+        let ownProcess = ProcessInfo.processInfo.processIdentifier
+        let localApp = available.applications.filter { $0.processID == ownProcess }
+        let filter = SCContentFilter(display: display, excludingApplications: localApp, exceptingWindows: [])
+        stream = SCStream(filter: filter, configuration: config, delegate: output)
         try stream.addStreamOutput(output, type: .screen, sampleHandlerQueue: output.queue)
         try stream.addStreamOutput(audioOutput, type: .audio, sampleHandlerQueue: audioOutput.queue)
     }

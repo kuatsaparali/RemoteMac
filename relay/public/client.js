@@ -423,7 +423,8 @@ fullscreen.addEventListener('click', async () => {
 });
 document.addEventListener('fullscreenchange', () => {
   if (current?.mobile) return;
-  const expanded = Boolean(document.fullscreenElement);
+  const expanded = document.fullscreenElement === shell;
+  shell.classList.toggle('is-watching', expanded);
   setText(fullscreen, expanded ? 'Выйти из полного экрана' : 'На весь экран');
   fullscreen.setAttribute('aria-pressed', String(expanded));
 });

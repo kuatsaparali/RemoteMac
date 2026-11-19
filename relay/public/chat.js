@@ -88,7 +88,7 @@ class ViewerChat {
 
   scheduleCollapse() {
     clearTimeout(this.collapseTimer);
-    if (!this.session?.mobile || this.panel.hidden || document.activeElement === this.input) return;
+    if (!this.session || this.panel.hidden || document.activeElement === this.input) return;
     this.collapseTimer = setTimeout(() => {
       this.setOpen(false, this.panel.contains(document.activeElement));
     }, 10_000);

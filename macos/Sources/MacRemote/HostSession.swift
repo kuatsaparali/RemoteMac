@@ -14,6 +14,7 @@ final class HostSession: ObservableObject {
     @Published private(set) var chatEnabled = UserDefaults.standard.object(forKey: "chatEnabled") as? Bool ?? true
     @Published private(set) var chatAvailable = false
     @Published private(set) var chatMessages = [ChatMessage]()
+    @Published private(set) var chatReceivedCount = 0
 
     private let network = URLSession(configuration: .ephemeral)
     private var socket: URLSessionWebSocketTask?
@@ -216,6 +217,7 @@ final class HostSession: ObservableObject {
         chatGeneration = 0
         chatAvailable = false
         chatMessages.removeAll()
+        chatReceivedCount = 0
         captureStarter = nil
         timeLimit = nil
         closing?.cancel(with: .normalClosure, reason: nil)
@@ -280,6 +282,7 @@ final class HostSession: ObservableObject {
         else { return false }
         if chatMessages.count >= 60 { chatMessages.removeFirst() }
         chatMessages.append(ChatMessage(text: text, fromHost: fromHost))
+        if !fromHost { chatReceivedCount += 1 }
         return true
     }
 

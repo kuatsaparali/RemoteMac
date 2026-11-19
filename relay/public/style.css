@@ -304,24 +304,6 @@ canvas {
 .chat-send { padding-inline: 12px; }
 .chat-send:disabled { cursor: default; }
 
-@media (min-width: 761px) {
-  .shell:not(.is-mobile) .workspace.chat-open {
-    grid-template-areas: "screen chat" "status chat";
-    grid-template-columns: minmax(0, 1fr) clamp(312px, 26vw, 380px);
-  }
-  .shell:not(.is-mobile) .chat-panel {
-    grid-area: chat;
-    position: static;
-    width: auto;
-    height: auto;
-    max-height: none;
-    border-inline-start: 1px solid var(--line);
-    border-radius: 0;
-    box-shadow: none;
-  }
-  .shell:not(.is-mobile) .chat-form textarea { resize: vertical; }
-}
-
 @media (max-width: 620px) {
   .topbar {
     padding: max(9px, var(--safe-top)) max(12px, var(--safe-right)) 9px max(12px, var(--safe-left));
@@ -386,7 +368,7 @@ canvas {
 }
 
 @media (orientation: portrait) {
-  .is-watching .workspace:not(.chat-open) .rotate-hint {
+  .is-mobile.is-watching .workspace:not(.chat-open) .rotate-hint {
     display: block;
     position: absolute;
     inset-inline: max(16px, var(--safe-left)) max(16px, var(--safe-right));
