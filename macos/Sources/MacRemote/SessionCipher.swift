@@ -38,6 +38,7 @@ struct SessionCipher {
     let secret: Data
     private var sent: UInt64 = 0
     private var audioSent: UInt64 = 0
+    private var chatSent: UInt64 = 0
     private var received: UInt64 = 0
 
     var lastFrameSequence: UInt64 { sent }
@@ -54,6 +55,12 @@ struct SessionCipher {
     mutating func audio(_ payload: Data) throws -> Data {
         audioSent += 1
         return try seal(payload, direction: 3, sequence: audioSent)
+    }
+
+    mutating func chat(_ event: ChatEvent) throws -> Data {
+        let payload = try JSONEncoder().encode(event)
+        chatSent += 1
+        return try seal(payload, direction: 4, sequence: chatSent)
     }
 
     private func seal(_ payload: Data, direction: UInt8, sequence: UInt64) throws -> Data {

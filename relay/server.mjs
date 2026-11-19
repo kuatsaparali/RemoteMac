@@ -13,6 +13,7 @@ const assets = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/locale.js', ['locale.js', 'text/javascript; charset=utf-8']],
   ['/audio.js', ['audio.js', 'text/javascript; charset=utf-8']],
+  ['/chat.js', ['chat.js', 'text/javascript; charset=utf-8']],
   ['/client.js', ['client.js', 'text/javascript; charset=utf-8']],
   ['/style.css', ['style.css', 'text/css; charset=utf-8']],
 ].map(([route, [file, type]]) => [

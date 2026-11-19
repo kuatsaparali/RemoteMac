@@ -6,6 +6,15 @@ const translations = {
   'На весь экран': 'Full screen',
   'Выйти из полного экрана': 'Exit full screen',
   'Отключиться': 'Disconnect',
+  'Чат': 'Chat',
+  'Чат сеанса': 'Session chat',
+  'Свернуть': 'Hide',
+  'Здесь появятся сообщения.': 'Messages will appear here.',
+  'Сообщение': 'Message',
+  'Сообщение…': 'Message…',
+  'Отправить': 'Send',
+  'Вы': 'You',
+  'Ведущий': 'Host',
   'Звук вкл': 'Sound on',
   'Звук выкл': 'Sound off',
   'Подключение к Mac': 'Connect to a Mac',
@@ -64,6 +73,9 @@ function updateLanguage() {
   for (const [element, message] of textKeys) element.textContent = translate(message);
   for (const element of document.querySelectorAll('[data-i18n-label]')) {
     element.setAttribute('aria-label', translate(element.dataset.i18nLabel));
+  }
+  for (const element of document.querySelectorAll('[data-i18n-placeholder]')) {
+    element.placeholder = translate(element.dataset.i18nPlaceholder);
   }
 }
 

@@ -11,12 +11,18 @@ final class HostSession: ObservableObject {
     @Published private(set) var inputAllowed = false
     @Published private(set) var invitation: URL?
     @Published private(set) var notice: SessionNotice?
+    @Published private(set) var chatEnabled = UserDefaults.standard.object(forKey: "chatEnabled") as? Bool ?? true
+    @Published private(set) var chatAvailable = false
+    @Published private(set) var chatMessages = [ChatMessage]()
 
     private let network = URLSession(configuration: .ephemeral)
     private var socket: URLSessionWebSocketTask?
     private var receiver: Task<Void, Never>?
     private var sender: Task<Void, Never>?
     private var audioSender: Task<Void, Never>?
+    private var chatSender: Task<Void, Never>?
+    private var chatPending = 0
+    private var chatGeneration = 0
     private var captureStarter: Task<Void, Never>?
     private var timeLimit: Task<Void, Never>?
     private var cipher: SessionCipher?
@@ -199,11 +205,17 @@ final class HostSession: ObservableObject {
         receiver?.cancel()
         sender?.cancel()
         audioSender?.cancel()
+        chatSender?.cancel()
         captureStarter?.cancel()
         timeLimit?.cancel()
         receiver = nil
         sender = nil
         audioSender = nil
+        chatSender = nil
+        chatPending = 0
+        chatGeneration = 0
+        chatAvailable = false
+        chatMessages.removeAll()
         captureStarter = nil
         timeLimit = nil
         closing?.cancel(with: .normalClosure, reason: nil)
@@ -253,6 +265,48 @@ final class HostSession: ObservableObject {
         }
     }
 
+    func setChatEnabled(_ enabled: Bool) {
+        guard chatEnabled != enabled else { return }
+        chatEnabled = enabled
+        UserDefaults.standard.set(enabled, forKey: "chatEnabled")
+        chatGeneration += 1
+        if chatAvailable { sendChatState() }
+    }
+
+    @discardableResult
+    func sendChat(_ raw: String, fromHost: Bool = true) -> Bool {
+        guard chatAvailable, chatEnabled, chatPending < 16, let text = ChatMessage.cleaned(raw),
+              enqueueChat(.init(type: .message, generation: chatGeneration, text: text, fromHost: fromHost))
+        else { return false }
+        if chatMessages.count >= 60 { chatMessages.removeFirst() }
+        chatMessages.append(ChatMessage(text: text, fromHost: fromHost))
+        return true
+    }
+
+    private func sendChatState() {
+        enqueueChat(.init(type: .state, generation: chatGeneration, enabled: chatEnabled))
+    }
+
+    @discardableResult
+    private func enqueueChat(_ event: ChatEvent) -> Bool {
+        guard phase == .active, let socket, let packet = try? cipher?.chat(event) else { return false }
+        let previous = chatSender
+        chatPending += 1
+        chatSender = Task { [weak self] in
+            await previous?.value
+            guard let self, self.socket === socket, !Task.isCancelled else { return }
+            do {
+                try await socket.send(.data(packet))
+                if self.socket === socket { self.chatPending -= 1 }
+            } catch {
+                if self.socket === socket {
+                    self.stop("Связь с сервером потеряна. Проверьте адрес и создайте новую ссылку.")
+                }
+            }
+        }
+        return true
+    }
+
     private func handle(_ message: URLSessionWebSocketTask.Message, invitation link: URL) {
         switch message {
         case .string(let text):
@@ -293,6 +347,13 @@ final class HostSession: ObservableObject {
                 }
             case .frameAck:
                 if let sequence = command.frame { framePacer.acknowledge(sequence) }
+            case .chatReady:
+                if !chatAvailable {
+                    chatAvailable = true
+                    sendChatState()
+                }
+            case .chat:
+                if command.generation == chatGeneration, let text = command.text { sendChat(text, fromHost: false) }
             default:
                 input?.apply(command)
             }

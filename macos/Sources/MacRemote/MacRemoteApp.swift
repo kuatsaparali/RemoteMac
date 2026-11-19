@@ -144,6 +144,9 @@ struct HostView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            Toggle(L10n.text("Чат в сеансе"), isOn: Binding(get: { host.chatEnabled }, set: { host.setChatEnabled($0) }))
+                .toggleStyle(.switch)
+                .controlSize(.small)
             HStack {
                 Spacer()
                 Button(L10n.text("Создать ссылку")) {
@@ -202,6 +205,10 @@ struct HostView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(15)
             .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 10))
+
+            if host.phase == .active && host.chatAvailable {
+                HostChatView(host: host)
+            }
 
             HStack {
                 Spacer()

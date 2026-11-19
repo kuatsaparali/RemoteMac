@@ -2,7 +2,7 @@ import AppKit
 import CoreGraphics
 
 struct RemoteCommand: Decodable {
-    enum Kind: String, Decodable { case move, down, up, scroll, keyDown, keyUp, release, stream, frameAck }
+    enum Kind: String, Decodable { case move, down, up, scroll, keyDown, keyUp, release, stream, frameAck, chatReady, chat }
     let type: Kind
     let x: Double?
     let y: Double?
@@ -14,6 +14,8 @@ struct RemoteCommand: Decodable {
     let codec: String?
     let audio: Bool?
     let frame: UInt64?
+    let text: String?
+    let generation: Int?
 }
 
 @MainActor
@@ -83,7 +85,7 @@ final class RemoteInput {
             keyboard(key, down: down, flags: flags, repeatKey: repeatKey)
         case .release:
             release()
-        case .stream, .frameAck:
+        case .stream, .frameAck, .chatReady, .chat:
             break
         }
     }

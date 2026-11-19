@@ -10,8 +10,8 @@ Download the app from [GitHub Releases](https://github.com/kuatsaparali/RemoteMa
 
 | Your Mac | Download |
 | --- | --- |
-| Apple Silicon, including M1, M2, M3, M4 and later | [MacRemote for Apple Silicon](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.6.1/MacRemote-0.6.1-macOS-arm64.zip) |
-| Intel processor | [MacRemote for Intel](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.6.1/MacRemote-0.6.1-macOS-x86_64.zip) |
+| Apple Silicon, including M1, M2, M3, M4 and later | [MacRemote for Apple Silicon](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.7.0/MacRemote-0.7.0-macOS-arm64.zip) |
+| Intel processor | [MacRemote for Intel](https://github.com/kuatsaparali/RemoteMac/releases/download/v0.7.0/MacRemote-0.7.0-macOS-x86_64.zip) |
 
 The standalone downloads require macOS 15 Sequoia or later and an internet connection, matching the bundled cloudflared binaries. Find your processor in **Apple menu → About This Mac**. Release downloads include the connection services, so you can launch the app from Finder without installing Homebrew, Node.js or Cloudflare Tunnel.
 
@@ -33,9 +33,12 @@ The Mac app supports **Russian and English**. Use the **Русский / English
 3. Open the complete invitation in a browser on that device, including everything after `#`, and click **Подключиться** (Connect).
 4. On the Mac, click **Разрешить доступ** (Allow access) to approve the request. The browser then displays the Mac's main screen and plays its system audio when supported. Use **Sound on / Sound off** in the browser to mute or unmute playback on the viewing device.
 5. Click inside the remote screen to send mouse and keyboard input. Press **Shift + Esc** to release keyboard focus back to the browser.
-6. To finish, click **Завершить сеанс** (End session) on the Mac or **Отключиться** (Disconnect) in the browser.
+6. To write to each other, open **Chat** in the browser or use the chat in the Mac app. On the Mac, **Session chat** turns chat on or off for both participants.
+7. To finish, click **Завершить сеанс** (End session) on the Mac or **Отключиться** (Disconnect) in the browser.
 
 Keep MacRemote open and the Mac awake and unlocked during the session. Closing the app stops its connection services. Each invitation accepts one viewer. Create a new link after a disconnection or declined request.
+
+The browser chat opens beside the screen on desktop and below it on phones. Hiding chat leaves the session running. The last 60 messages are kept in memory until the session ends.
 
 On a touchscreen, a tap sends a mouse click. Typing requires a physical keyboard. Some keyboard shortcuts are intercepted by the browser or operating system. The remote Mac's selected keyboard layout determines the typed text.
 
@@ -48,7 +51,7 @@ On a touchscreen, a tap sends a mouse click. Typing requires a physical keyboard
 
 ## Connection and privacy
 
-MacRemote captures the main display with ScreenCaptureKit and injects mouse and keyboard events through Core Graphics after you approve access. Screen video, system audio and input commands are encrypted with AES-GCM between the Mac and browser. The stream excludes the microphone. The session encryption key is included in the invitation's URL fragment after `#`. Treat the full invitation as private.
+MacRemote captures the main display with ScreenCaptureKit and injects mouse and keyboard events through Core Graphics after you approve access. Screen video, system audio, chat messages and input commands are encrypted with AES-GCM between the Mac and browser. The stream excludes the microphone. The session encryption key is included in the invitation's URL fragment after `#`. Treat the full invitation as private.
 
 The bundled relay listens on a randomly assigned loopback port. A temporary Cloudflare Tunnel makes that service reachable through HTTPS. The browser client is delivered through the same tunnel, and Cloudflare participates in serving that client. For startup checks, the app can fall back to Cloudflare public DNS if the local resolver cannot find the new tunnel hostname. The temporary hostname changes for each session. [Cloudflare Tunnel documentation](https://developers.cloudflare.com/tunnel/concepts/#quick-tunnels)
 

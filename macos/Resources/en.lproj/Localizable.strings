@@ -63,3 +63,11 @@
 "Укажите адрес HTTPS или http://localhost:8787." = "Enter an HTTPS address or http://localhost:8787.";
 "Универсальный доступ" = "Accessibility";
 "Это может занять до 90 секунд. После подключения появится ссылка-приглашение." = "This can take up to 90 seconds. Your invitation link will appear when the connection is ready.";
+"Чат" = "Chat";
+"Чат в сеансе" = "Session chat";
+"Здесь появятся сообщения." = "Messages will appear here.";
+"Сообщение…" = "Message…";
+"Отправить" = "Send";
+"До 250 символов" = "Up to 250 characters";
+"Вы" = "You";
+"Зритель" = "Viewer";

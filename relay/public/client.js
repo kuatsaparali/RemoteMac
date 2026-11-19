@@ -16,6 +16,7 @@ const fullscreen = byId('fullscreen');
 const sound = byId('sound');
 const resolution = byId('resolution');
 const context = canvas.getContext('2d', { alpha: false, desynchronized: true });
+const chat = new ViewerChat(send);
 
 const invitationPattern = /^#([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{43})$/;
 let initialLink = invitationPattern.exec(location.hash);
@@ -34,6 +35,7 @@ fullscreen.hidden = !document.fullscreenEnabled;
 function reset(session, message) {
   if (current !== session) return;
   current = undefined;
+  chat.reset();
   clearTimeout(session?.timer);
   session?.socket?.close();
   clearTimeout(session?.videoTimer);
@@ -108,7 +110,9 @@ async function start(match) {
       if (current !== session) return;
       if (typeof event.data !== 'string') {
         if (session.approved && event.data.byteLength >= 29) {
-          if (new DataView(event.data).getUint32(0) === 3) postAudio(session, event.data);
+          const direction = new DataView(event.data).getUint32(0);
+          if (direction === 3) postAudio(session, event.data);
+          else if (direction === 4) chat.receive(session, event.data);
           else postFrame(session, event.data);
         }
         return;
@@ -123,6 +127,7 @@ async function start(match) {
           break;
         case 'active':
           session.approved = true;
+          chat.connect(session);
           negotiateVideo(session);
           setText(heading, 'Получаем экран');
           wait(session, 'Подключение одобрено. Загружаем первый кадр.', 15_000, 'Экран не поступил. Проверьте разрешения на удалённом Mac.');

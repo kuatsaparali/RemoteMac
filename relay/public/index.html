@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/style.css">
   <script src="/locale.js" defer></script>
   <script src="/audio.js" defer></script>
+  <script src="/chat.js" defer></script>
   <script src="/client.js" defer></script>
 </head>
 <body>
@@ -22,6 +23,7 @@
         <button type="button" class="quiet" id="sound" aria-pressed="false" hidden data-i18n>Звук выкл</button>
         <button type="button" class="quiet" id="keyboard" data-i18n aria-pressed="false">Клавиатура</button>
         <button type="button" class="quiet" id="fullscreen" data-i18n aria-pressed="false">На весь экран</button>
+        <button type="button" class="quiet chat-toggle" id="chat-toggle" aria-controls="chat-panel" aria-expanded="false" hidden><span data-i18n>Чат</span><span class="chat-count" id="chat-count" aria-live="polite" hidden></span></button>
         <button type="button" class="stop" id="disconnect" data-i18n>Отключиться</button>
       </div>
     </header>
@@ -43,6 +45,20 @@
       <div class="viewport" id="viewport">
         <canvas id="screen" tabindex="0" aria-label="Удалённый экран Mac" data-i18n-label="Удалённый экран Mac" aria-describedby="keyboard-hint"></canvas>
       </div>
+      <aside class="chat-panel" id="chat-panel" aria-labelledby="chat-heading" hidden>
+        <header class="chat-header">
+          <h2 id="chat-heading" data-i18n>Чат сеанса</h2>
+          <button type="button" class="quiet" id="chat-close" data-i18n>Свернуть</button>
+        </header>
+        <div class="chat-feed" id="chat-feed">
+          <p class="chat-empty" id="chat-empty" data-i18n>Здесь появятся сообщения.</p>
+          <div class="chat-log" id="chat-log" role="log" aria-labelledby="chat-heading"></div>
+        </div>
+        <form class="chat-form" id="chat-form">
+          <textarea id="chat-input" rows="1" maxlength="250" enterkeyhint="send" placeholder="Сообщение…" data-i18n-placeholder="Сообщение…" aria-label="Сообщение" data-i18n-label="Сообщение"></textarea>
+          <button class="primary chat-send" id="chat-send" type="submit" disabled data-i18n>Отправить</button>
+        </form>
+      </aside>
       <footer class="session-bar">
         <span class="live"><span aria-hidden="true"></span><b data-i18n>Сеанс открыт</b></span>
         <span class="shortcuts" id="keyboard-hint"><span class="desktop-hint" data-i18n>Щёлкните по экрану для управления. Shift + Esc освобождает клавиатуру.</span><span class="touch-hint" data-i18n>Касание — щелчок. Для ввода нужна физическая клавиатура.</span></span>
